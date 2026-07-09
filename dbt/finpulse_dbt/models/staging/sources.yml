@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: raw
+    database: finpulse
+    schema: public
+    description: Raw banking dataset loaded into PostgreSQL.
+    tables:
+      - name: customers
+        description: Raw customer records.
+
+      - name: accounts
+        description: Raw bank account records.
+
+      - name: cards
+        description: Raw card records.
+
+      - name: merchants
+        description: Raw merchant records.
+
+      - name: branches
+        description: Raw branch records.
+
+      - name: loans
+        description: Raw loan records.
+
+      - name: transactions
+        description: Raw transaction records.
