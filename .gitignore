@@ -33,3 +33,15 @@ mlruns/
 # OS
 .DS_Store
 Thumbs.db
+
+# Large local SQL dataset files
+sql/inserts/*.sql
+!sql/inserts/.gitkeep
+
+# Local data files
+data/raw/*
+data/processed/*
+data/curated/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/curated/.gitkeep
