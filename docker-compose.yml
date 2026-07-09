@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: finpulse_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: finpulse_user
+      POSTGRES_PASSWORD: finpulse_password
+      POSTGRES_DB: finpulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - finpulse_network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: finpulse_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@finpulse.ai
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - finpulse_network
+
+  minio:
+    image: minio/minio
+    container_name: finpulse_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - finpulse_network
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  finpulse_network:
+    driver: bridge
