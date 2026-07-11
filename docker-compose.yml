@@ -23,6 +23,8 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     depends_on:
       - postgres
     networks:
@@ -44,8 +46,22 @@ services:
     networks:
       - finpulse_network
 
+  jupyter:
+    image: jupyter/scipy-notebook
+    container_name: finpulse_jupyter
+    restart: always
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./src:/home/jovyan/src
+      - ./data:/home/jovyan/data
+    networks:
+      - finpulse_network
+
 volumes:
   postgres_data:
+  pgadmin_data:
   minio_data:
 
 networks:
