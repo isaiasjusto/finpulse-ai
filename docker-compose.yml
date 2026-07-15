@@ -11,6 +11,11 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finpulse_user -d finpulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       - finpulse_network
 
@@ -26,7 +31,8 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - finpulse_network
 
@@ -43,6 +49,53 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - finpulse_network
+
+  minio-init:
+    image: minio/mc
+    container_name: finpulse_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set finpulse http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing finpulse/mlflow;
+      exit 0;
+      "
+    networks:
+      - finpulse_network
+
+  mlflow:
+    build:
+      context: ./docker/mlflow
+    container_name: finpulse_mlflow
+    restart: always
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_DEFAULT_REGION: us-east-1
+      MLFLOW_SERVER_ALLOWED_HOSTS: "localhost:*,127.0.0.1:*,mlflow:5000"
+    command: >
+      mlflow server
+      --backend-store-uri postgresql+psycopg2://finpulse_user:finpulse_password@postgres:5432/mlflow
+      --artifacts-destination s3://mlflow
+      --host 0.0.0.0
+      --port 5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     networks:
       - finpulse_network
 
@@ -56,6 +109,14 @@ services:
       - ./notebooks:/home/jovyan/work
       - ./src:/home/jovyan/src
       - ./data:/home/jovyan/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities:
+                - gpu
     networks:
       - finpulse_network
 
