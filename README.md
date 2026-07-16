@@ -2,58 +2,86 @@
 
 ### Plataforma de Inteligência Financeira para Open Finance
 
-Transformando dados bancários relacionais em perfis financeiros, indicadores explicáveis, modelos preditivos e decisões acionáveis.
+Transformando dados bancários relacionais em perfis financeiros, datasets temporais, experimentos rastreáveis e decisões acionáveis.
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![dbt](https://img.shields.io/badge/dbt-Analytics-FF694B?logo=dbt&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Jupyter](https://img.shields.io/badge/Jupyter-Notebooks-F37626?logo=jupyter&logoColor=white)
+![MLflow](https://img.shields.io/badge/MLflow-Tracking-0194E2?logo=mlflow&logoColor=white)
 ![MinIO](https://img.shields.io/badge/MinIO-S3--compatible-C72E49)
+![GPU](https://img.shields.io/badge/NVIDIA-RTX%205060-76B900?logo=nvidia&logoColor=white)
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-F5A623)
 
 ---
 
 ## Sobre o projeto
 
-O **FinPulse AI** é um projeto end-to-end de dados e inteligência artificial aplicado ao contexto de fintech e Open Finance.
+O **FinPulse AI** é um projeto end-to-end de Engenharia de Dados, Ciência de Dados e MLOps aplicado ao contexto de fintech e Open Finance.
 
-A plataforma parte de um dataset bancário relacional com **1,26 milhão de registros**, organiza os dados em uma arquitetura analítica com PostgreSQL e dbt e os transforma em uma visão financeira consolidada por cliente. Sobre essa base são construídas features, scores explicáveis e, nas próximas etapas, modelos de churn, detecção de anomalias, recomendações, API, dashboard e um assistente financeiro com IA generativa.
+A plataforma parte de um dataset bancário relacional sintético com **1,26 milhão de registros**, organiza os dados no PostgreSQL com transformações dbt e constrói duas camadas analíticas complementares:
 
-> **Status atual:** infraestrutura local, carga de dados, validações, camada dbt e primeira etapa de feature engineering concluídas. Integração com MLflow e modelagem de churn são as próximas entregas.
+- um perfil financeiro atual por cliente, voltado a indicadores explicáveis e dashboard;
+- um dataset supervisionado temporal, voltado à previsão de inatividade transacional futura.
+
+O ambiente é executado localmente com Docker Compose. O MLflow utiliza PostgreSQL como backend de tracking e MinIO como armazenamento S3-compatible para artefatos. Modelos de gradient boosting também foram executados com aceleração CUDA em uma NVIDIA RTX 5060.
+
+> **Status atual:** infraestrutura, carga, qualidade, dbt, perfil financeiro, dataset temporal v1, validação temporal, MLflow e primeiros experimentos de classificação concluídos. A próxima iteração criará novas features temporais para o dataset v2.
 
 ## Problema de negócio
 
-O FinPulse AI busca responder perguntas como:
+O projeto busca responder perguntas como:
 
-- Quais clientes apresentam sinais de desengajamento?
+- Quais clientes apresentam sinais de desengajamento transacional?
+- Quais clientes podem ficar inativos nos próximos 90 dias?
 - Quais clientes precisam de atenção financeira?
-- Onde existe maior exposição a crédito?
+- Onde existe maior exposição a crédito e pressão de dívida?
 - Quais comportamentos podem indicar anomalias?
-- Que produto ou ação pode ser recomendado para cada perfil?
-- Como explicar scores e previsões de maneira clara e acionável?
+- Como transformar previsões e scores em ações explicáveis?
 
-## Arquitetura
+### Definição responsável do target
+
+O dataset não possui cancelamento contratual real. Portanto, o modelo não afirma prever encerramento de conta. O target utilizado é uma **proxy de inatividade transacional futura**:
+
+- `0`: houve pelo menos uma transação nos 90 dias seguintes ao cutoff;
+- `1`: não houve transação nos 90 dias seguintes ao cutoff.
+
+Cada cliente precisa ter pelo menos uma transação nos 180 dias anteriores para ser elegível. Todas as features são calculadas apenas com dados disponíveis até a data de corte.
+
+## Aprendizado central: prevenção de leakage
+
+A primeira hipótese de churn utilizava uma label heurística derivada das mesmas variáveis oferecidas ao modelo. Uma regra baseada em `has_transaction` reproduzia essa label com aproximadamente 99,9% de acurácia, revelando vazamento circular de target.
+
+A abordagem foi descartada. O problema foi reconstruído temporalmente, separando claramente:
+
+- janela histórica de observação;
+- data de cutoff;
+- janela futura de predição;
+- treino, validação, embargo e teste.
+
+Esse diagnóstico faz parte do resultado do projeto: métricas artificialmente perfeitas foram substituídas por uma avaliação temporal honesta e reproduzível.
+
+## Arquitetura atual
 
 ```mermaid
-flowchart LR
-    A["Dados bancários<br/>7 tabelas"] --> B["PostgreSQL<br/>raw"]
-    B --> C["dbt<br/>staging"]
-    C --> D["dbt<br/>intermediate"]
-    D --> E["Mart financeira<br/>1 cliente por linha"]
-    E --> F["Jupyter / Python<br/>feature engineering"]
-    F --> G["Dataset processado<br/>50 mil × 73"]
-    G -. próxima etapa .-> H["MLflow + modelos<br/>churn e risco"]
-    H -. roadmap .-> I["FastAPI + dashboard<br/>IA explicativa"]
-    F -. armazenamento .-> J["MinIO<br/>S3-compatible"]
+flowchart TD
+    A["Dataset bancário<br/>7 tabelas"] --> B["PostgreSQL<br/>raw"]
+    B --> C["dbt<br/>staging e intermediate"]
+    C --> D["Mart financeira<br/>50 mil clientes"]
+    C --> E["Dataset temporal<br/>cutoffs trimestrais"]
+    D --> F["Perfil financeiro<br/>e scores explicáveis"]
+    E --> G["Modelos de classificação<br/>CPU e RTX 5060"]
+    G --> H["MLflow Tracking<br/>backend PostgreSQL"]
+    H --> I["MinIO<br/>artefatos S3"]
 ```
 
 | Serviço | Função | Porta |
 |---|---|---:|
-| PostgreSQL 16 | Banco transacional e camadas analíticas | `5433` |
+| PostgreSQL 16 | Dados relacionais, camadas dbt e backend do MLflow | `5433` |
 | pgAdmin | Administração do PostgreSQL | `5050` |
-| MinIO | Data lake S3-compatible | `9000` / `9001` |
-| Jupyter | Análises, features e modelagem | `8888` |
+| MinIO | Data lake e artefatos S3-compatible | `9000` / `9001` |
+| MLflow | Experimentos, métricas, datasets e artefatos | `5000` |
+| Jupyter | Feature engineering e treinamento | `8888` |
 
 ## Dados
 
@@ -68,7 +96,11 @@ flowchart LR
 | `loans` | 30.000 |
 | **Total** | **1.260.500** |
 
-Os arquivos volumosos de dados e inserção não são versionados no GitHub. As validações cobrem contagens, duplicidades, nulos críticos, integridade referencial, valores financeiros, datas e relacionamentos.
+Arquivos volumosos e artefatos locais não são versionados. As validações cobrem contagens, duplicidades, nulos críticos, integridade referencial, valores financeiros e coerência temporal.
+
+### Limitação temporal encontrada
+
+As datas sintéticas de criação de clientes, abertura de contas e início de empréstimos apresentam inconsistências sistemáticas. Elas não são utilizadas na modelagem temporal. A referência temporal confiável é o histórico observado de transações.
 
 ## Transformações com dbt
 
@@ -82,54 +114,79 @@ Os arquivos volumosos de dados e inserção não são versionados no GitHub. As 
 
 ### Mart
 
-A `dbt.mart_customer_financial_profile` consolida perfil, contas, saldos, cartões, empréstimos e comportamento transacional.
+A `dbt.mart_customer_financial_profile` consolida perfil, contas, saldos, cartões, empréstimos e comportamento transacional em uma linha por cliente.
 
-| Resultado | Valor |
+## Notebooks
+
+### 01 — Financial Profile Feature Engineering
+
+Constrói o perfil financeiro atual com **50.000 clientes e 75 colunas**, incluindo:
+
+- contas, saldos e concentração financeira;
+- cartões e diversidade de produtos;
+- empréstimos e pressão de dívida;
+- comportamento transacional;
+- Financial Health Score;
+- heurística descritiva de desengajamento.
+
+A heurística de desengajamento não é utilizada como target supervisionado.
+
+### 02 — Temporal Inactivity Dataset
+
+Constrói um dataset point-in-time usando somente histórico anterior ao cutoff.
+
+| Propriedade | Valor |
 |---|---:|
-| Granularidade | 1 linha por cliente |
-| Clientes | 50.000 |
-| Colunas analíticas | 45 |
-| Tempo observado de materialização | 3,72 s |
+| Snapshots cliente-cutoff | 658.587 |
+| Cutoffs trimestrais | 22 |
+| Janela de observação | 180 dias |
+| Janela de predição | 90 dias |
+| Features iniciais | 18 |
+| Colunas finais | 22 |
+| Taxa geral de inatividade | 41,37% |
 
-## Feature engineering
+Split temporal:
 
-| Grupo | Exemplos |
-|---|---|
-| Tempo e recência | `customer_tenure_days`, `days_since_last_transaction` |
-| Contas e saldos | `balance_per_account`, `balance_concentration_ratio` |
-| Cartões | `credit_card_ratio`, `card_product_diversity` |
-| Crédito e empréstimos | `loan_to_balance_ratio`, `loan_intensity` |
-| Comportamento transacional | `amount_per_transaction`, `merchant_diversity_ratio` |
-| Relacionamento | `relationship_depth`, `product_diversity_score` |
-| Risco e resiliência | `debt_pressure_flag`, `financial_resilience_proxy` |
+| Partição | Linhas | Uso |
+|---|---:|---|
+| Treino | 448.919 | Ajuste dos modelos |
+| Validação | 89.934 | Comparação e early stopping |
+| Teste | 59.902 | Reservado para avaliação final |
+| Embargo | 59.832 | Prevenção de sobreposição temporal |
 
-O dataset final possui **50.000 clientes, 73 colunas e nenhum cliente duplicado**. A saída local é salva em `data/processed/customer_financial_features.csv`.
+O dataset, os metadados e o resumo dos splits são registrados no MLflow; os artefatos são persistidos no MinIO.
 
-## Camadas analíticas atuais
+### 03 — Transaction Inactivity Prediction
 
-### Churn Risk Score
+Compara modelos lineares e não lineares utilizando a mesma validação temporal. Após a análise de redundância, um conjunto reduzido de 13 features foi usado nos modelos principais.
 
-Proxy comportamental de risco de desengajamento baseada em recência, frequência, profundidade do relacionamento e diversidade de produtos.
+Resultados atuais na validação:
 
-| Segmento | Clientes |
-|---|---:|
-| Low | 36.765 |
-| Medium | 2.059 |
-| High | 11.176 |
+| Modelo | Processamento | ROC AUC | Average Precision |
+|---|---|---:|---:|
+| DummyClassifier | CPU | 0,5000 | 0,4143 |
+| Logistic Regression | CPU | 0,5973 | 0,4833 |
+| HistGradientBoosting | CPU | 0,5970 | 0,4816 |
+| XGBoost | RTX 5060 / CUDA | **0,5980** | **0,4838** |
+| CatBoost | RTX 5060 / CUDA | 0,5971 | 0,4762 |
 
-A label binária derivada possui **22,35%** de clientes em alto risco. Como não existe churn real observado no dataset, essa limitação será considerada explicitamente na modelagem.
+Os quatro modelos treináveis convergiram para desempenho semelhante. Isso indica que o principal gargalo atual está no sinal disponível nas features, não apenas na escolha do algoritmo.
 
-### Financial Health Score V1
+O threshold de classificação ainda não foi escolhido e o conjunto de teste permanece reservado.
 
-Score explicável de **0 a 100**, composto por força de saldo, pressão de dívida, engajamento transacional, relacionamento e resiliência financeira.
+## MLflow e MinIO
 
-| Segmento | Clientes |
-|---|---:|
-| Critical | 14.325 |
-| Attention | 17.703 |
-| Healthy | 17.972 |
+O experimento `finpulse_temporal_dataset` registra:
 
-> Trata-se de uma proxy analítica educacional, não de um score de crédito oficial ou regra regulatória.
+- definição e versão do dataset;
+- target, janelas e cutoffs;
+- distribuição dos splits;
+- métricas de inatividade;
+- Parquet temporal;
+- metadados JSON;
+- resumo dos splits.
+
+O PostgreSQL armazena os metadados de tracking e o bucket `mlflow` no MinIO armazena os artefatos.
 
 ## Estrutura do repositório
 
@@ -137,9 +194,14 @@ Score explicável de **0 a 100**, composto por força de saldo, pressão de dív
 finpulse-ai/
 ├── data/{raw,processed,curated}
 ├── dbt/finpulse_dbt/
+├── docker/
+│   └── mlflow/Dockerfile
 ├── docs/
 ├── models/
 ├── notebooks/
+│   ├── 01_feature_engineering_financial_profile.ipynb
+│   ├── 02_churn_temporal_dataset.ipynb
+│   └── 03_churn_risk_model.ipynb
 ├── reports/
 ├── sql/{ddl,inserts,quality}
 ├── src/
@@ -149,10 +211,17 @@ finpulse-ai/
 
 ## Como executar
 
+### Pré-requisitos
+
+- Docker Desktop com backend WSL2;
+- Docker Compose;
+- driver NVIDIA atualizado para treinamento GPU;
+- aproximadamente 8 GB de memória disponível para os serviços locais.
+
 ```bash
 git clone https://github.com/isaiasjusto/finpulse-ai.git
 cd finpulse-ai
-docker compose up -d
+docker compose up -d --build
 docker compose ps
 ```
 
@@ -161,9 +230,16 @@ Acessos locais:
 - pgAdmin: http://localhost:5050
 - Jupyter: http://localhost:8888
 - MinIO Console: http://localhost:9001
+- MLflow: http://localhost:5000
 - PostgreSQL externo: `127.0.0.1:5433`
 
-Para executar as transformações:
+O token do Jupyter pode ser recuperado com:
+
+```bash
+docker exec finpulse_jupyter jupyter server list
+```
+
+Para executar as transformações dbt:
 
 ```bash
 cd dbt/finpulse_dbt
@@ -172,7 +248,7 @@ dbt run
 dbt test
 ```
 
-> As credenciais atuais são exclusivas para desenvolvimento local. Em produção, devem ser substituídas por variáveis de ambiente e gerenciamento seguro de segredos.
+> As credenciais presentes no Compose são exclusivas para desenvolvimento local. Uma implantação real deve utilizar variáveis de ambiente e gerenciamento seguro de segredos.
 
 ## Roadmap
 
@@ -180,15 +256,19 @@ dbt test
 - [x] PostgreSQL, pgAdmin, MinIO e Jupyter
 - [x] Carga e qualidade das sete tabelas bancárias
 - [x] Camadas dbt staging, intermediate e mart
-- [x] Feature engineering
-- [x] Churn Risk Score comportamental
-- [x] Financial Health Score V1
-- [x] Exportação do dataset processado
-- [ ] MLflow Tracking Server com PostgreSQL e MinIO
-- [ ] Baselines de churn
-- [ ] XGBoost/CatBoost com aceleração por GPU
-- [ ] Otimização com Optuna
-- [ ] Model Registry e modelo campeão
+- [x] Perfil financeiro e Financial Health Score
+- [x] Auditoria de qualidade temporal
+- [x] Target temporal sem vazamento circular
+- [x] Dataset com treino, validação, embargo e teste
+- [x] MLflow Tracking Server com PostgreSQL e MinIO
+- [x] Baselines Dummy e Logistic Regression
+- [x] HistGradientBoosting
+- [x] XGBoost e CatBoost com RTX 5060
+- [ ] Dataset temporal v2 com novas features
+- [ ] Otimização dos modelos campeões
+- [ ] Escolha de threshold orientada ao negócio
+- [ ] Avaliação única no conjunto de teste
+- [ ] Model Registry e promoção do campeão
 - [ ] Detecção de anomalias
 - [ ] Camada de recomendações
 - [ ] Orquestração com Airflow
@@ -199,15 +279,15 @@ dbt test
 
 ## Próxima etapa
 
-A próxima entrega integra MLflow ao Docker, usa PostgreSQL como backend e MinIO para artefatos. Em seguida, o notebook `02_churn_risk_model.ipynb` comparará Logistic Regression, modelos de árvores, XGBoost e CatBoost, com aceleração pela RTX 5060 quando suportada e otimização via Optuna.
+A próxima iteração criará um dataset temporal `v2`, preservando a versão atual como baseline. As novas features explorarão intervalos entre transações, regularidade mensal, tendência, volatilidade, sequências de inatividade e histórico de 180 a 360 dias antes do cutoff.
 
-As métricas principais serão recall, F1-score, PR-AUC, ROC-AUC e tempo de inferência. A modelagem excluirá `churn_risk_score`, `churn_risk_segment` e `churn_risk_label` das features para evitar vazamento de target.
+Se diferentes famílias de modelos continuarem próximas de ROC AUC 0,60 após essa evolução, a limitação será documentada como característica do gerador sintético, sem fabricar desempenho artificial.
 
 ## Tecnologias
 
-**Implementadas:** Python · Pandas · scikit-learn · PostgreSQL · dbt · Docker · Jupyter · MinIO
+**Implementadas:** Python · Pandas · scikit-learn · PostgreSQL · dbt · Docker · Jupyter · MinIO · MLflow · XGBoost · CatBoost · CUDA
 
-**Planejadas:** MLflow · Optuna · XGBoost · CatBoost · Airflow · FastAPI · Streamlit · LangChain · AWS S3 · SageMaker
+**Planejadas:** Optuna · Airflow · FastAPI · Streamlit · LangChain · AWS S3 · SageMaker
 
 ## Autor
 
