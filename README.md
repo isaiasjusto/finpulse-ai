@@ -1,209 +1,236 @@
 # FinPulse AI
 
-### Plataforma de Inteligência Financeira para Open Finance
+### Plataforma end-to-end de dados, Machine Learning e MLOps para previsão de churn bancário
 
-Transformando dados bancários relacionais em perfis financeiros, datasets temporais, experimentos rastreáveis e decisões acionáveis.
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![dbt](https://img.shields.io/badge/dbt-Analytics_Engineering-FF694B?logo=dbt&logoColor=white)](https://www.getdbt.com/)
+[![MLflow](https://img.shields.io/badge/MLflow-Tracking_%26_Registry-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
+[![MinIO](https://img.shields.io/badge/MinIO-S3_Compatible-C72E49?logo=minio&logoColor=white)](https://min.io/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Status](https://img.shields.io/badge/status-modelo_registrado-16A085)](#status-do-projeto)
 
-![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![dbt](https://img.shields.io/badge/dbt-Analytics-FF694B?logo=dbt&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![MLflow](https://img.shields.io/badge/MLflow-Tracking-0194E2?logo=mlflow&logoColor=white)
-![MinIO](https://img.shields.io/badge/MinIO-S3--compatible-C72E49)
-![GPU](https://img.shields.io/badge/NVIDIA-RTX%205060-76B900?logo=nvidia&logoColor=white)
-![Status](https://img.shields.io/badge/status-em%20desenvolvimento-F5A623)
+![Solução técnica do FinPulse AI para previsão de churn](docs/architecture/finpulse-ai-solution-overview.png)
 
----
+## Visão geral
 
-## Sobre o projeto
+O **FinPulse AI** transforma dados de clientes de cartão de crédito em uma solução rastreável de previsão de churn. O projeto cobre o fluxo completo entre armazenamento, qualidade, transformação analítica, experimentação, validação e registro do modelo.
 
-O **FinPulse AI** é um projeto end-to-end de Engenharia de Dados, Ciência de Dados e MLOps aplicado ao contexto de fintech e Open Finance.
+O objetivo é estimar a probabilidade de um cliente encerrar o relacionamento e disponibilizar esse sinal para ações de retenção, alertas e dashboards.
 
-A plataforma parte de um dataset bancário relacional sintético com **1,26 milhão de registros**, organiza os dados no PostgreSQL com transformações dbt e constrói duas camadas analíticas complementares:
+O projeto foi construído como portfólio prático de:
 
-- um perfil financeiro atual por cliente, voltado a indicadores explicáveis e dashboard;
-- um dataset supervisionado temporal, voltado à previsão de inatividade transacional futura.
+- Engenharia de Dados;
+- Analytics Engineering com dbt;
+- Ciência de Dados e Machine Learning;
+- MLOps com MLflow e MinIO;
+- arquitetura local reproduzível com Docker Compose.
 
-O ambiente é executado localmente com Docker Compose. O MLflow utiliza PostgreSQL como backend de tracking e MinIO como armazenamento S3-compatible para artefatos. Modelos de gradient boosting também foram executados com aceleração CUDA em uma NVIDIA RTX 5060.
+## Resultado atual
 
-> **Status atual:** infraestrutura, carga, qualidade, dbt, perfil financeiro, dataset temporal v1, validação temporal, MLflow e primeiros experimentos de classificação concluídos. A próxima iteração criará novas features temporais para o dataset v2.
+O CatBoost foi selecionado como modelo campeão após benchmark de dez algoritmos, análise de overfitting e validação cruzada.
+
+| Métrica no teste reservado | Resultado |
+|---|---:|
+| ROC AUC | **0,9934** |
+| Average Precision | **0,9699** |
+| Accuracy | **0,9753** |
+| Balanced Accuracy | **0,9417** |
+| Precision | **0,9508** |
+| Recall | **0,8923** |
+| F1-score | **0,9206** |
+
+Matriz de confusão no threshold oficial:
+
+| Resultado | Clientes |
+|---|---:|
+| True Negative | 1.686 |
+| False Positive | 15 |
+| False Negative | 35 |
+| True Positive | 290 |
+
+Essas métricas representam uma única avaliação no conjunto de teste reservado após a escolha do algoritmo e dos thresholds na validação.
 
 ## Problema de negócio
 
-O projeto busca responder perguntas como:
+Uma instituição financeira precisa priorizar clientes para ações de retenção sem abordar toda a carteira indiscriminadamente.
 
-- Quais clientes apresentam sinais de desengajamento transacional?
-- Quais clientes podem ficar inativos nos próximos 90 dias?
-- Quais clientes precisam de atenção financeira?
-- Onde existe maior exposição a crédito e pressão de dívida?
-- Quais comportamentos podem indicar anomalias?
-- Como transformar previsões e scores em ações explicáveis?
+O modelo responde:
 
-### Definição responsável do target
+> Qual é a probabilidade de churn deste cliente e em qual faixa de risco ele deve ser classificado?
 
-O dataset não possui cancelamento contratual real. Portanto, o modelo não afirma prever encerramento de conta. O target utilizado é uma **proxy de inatividade transacional futura**:
+Foram definidos dois pontos de operação:
 
-- `0`: houve pelo menos uma transação nos 90 dias seguintes ao cutoff;
-- `1`: não houve transação nos 90 dias seguintes ao cutoff.
+| Uso | Threshold aproximado | Objetivo |
+|---|---:|---|
+| Watchlist | `0,2075` | aumentar cobertura de clientes potencialmente em risco |
+| Classificação oficial | `0,4762` | equilibrar precision e recall pelo melhor F1 na validação |
 
-Cada cliente precisa ter pelo menos uma transação nos 180 dias anteriores para ser elegível. Todas as features são calculadas apenas com dados disponíveis até a data de corte.
+As faixas planejadas para consumo são:
 
-## Aprendizado central: prevenção de leakage
-
-A primeira hipótese de churn utilizava uma label heurística derivada das mesmas variáveis oferecidas ao modelo. Uma regra baseada em `has_transaction` reproduzia essa label com aproximadamente 99,9% de acurácia, revelando vazamento circular de target.
-
-A abordagem foi descartada. O problema foi reconstruído temporalmente, separando claramente:
-
-- janela histórica de observação;
-- data de cutoff;
-- janela futura de predição;
-- treino, validação, embargo e teste.
-
-Esse diagnóstico faz parte do resultado do projeto: métricas artificialmente perfeitas foram substituídas por uma avaliação temporal honesta e reproduzível.
-
-## Arquitetura atual
-
-```mermaid
-flowchart TD
-    A["Dataset bancário<br/>7 tabelas"] --> B["PostgreSQL<br/>raw"]
-    B --> C["dbt<br/>staging e intermediate"]
-    C --> D["Mart financeira<br/>50 mil clientes"]
-    C --> E["Dataset temporal<br/>cutoffs trimestrais"]
-    D --> F["Perfil financeiro<br/>e scores explicáveis"]
-    E --> G["Modelos de classificação<br/>CPU e RTX 5060"]
-    G --> H["MLflow Tracking<br/>backend PostgreSQL"]
-    H --> I["MinIO<br/>artefatos S3"]
+```text
+Low     probability < 0.2075
+Medium  0.2075 <= probability < 0.4762
+High    probability >= 0.4762
 ```
 
-| Serviço | Função | Porta |
-|---|---|---:|
-| PostgreSQL 16 | Dados relacionais, camadas dbt e backend do MLflow | `5433` |
-| pgAdmin | Administração do PostgreSQL | `5050` |
-| MinIO | Data lake e artefatos S3-compatible | `9000` / `9001` |
-| MLflow | Experimentos, métricas, datasets e artefatos | `5000` |
-| Jupyter | Feature engineering e treinamento | `8888` |
+## Dataset
 
-## Dados
+O projeto utiliza o arquivo `BankChurners.csv`, disponibilizado no dataset público [Credit Card Customers](https://www.kaggle.com/datasets/sakshigoyal7/credit-card-customers).
 
-| Tabela | Registros |
+| Característica | Valor |
 |---|---:|
-| `customers` | 50.000 |
-| `accounts` | 75.000 |
-| `cards` | 100.000 |
-| `transactions` | 1.000.000 |
-| `merchants` | 5.000 |
-| `branches` | 500 |
-| `loans` | 30.000 |
-| **Total** | **1.260.500** |
+| Clientes | 10.127 |
+| Clientes existentes | 8.500 |
+| Clientes em churn | 1.627 |
+| Taxa de churn | 16,07% |
+| Colunas brutas | 23 |
+| Features usadas pelo modelo | 19 |
+| Valores nulos | 0 |
+| Clientes duplicados | 0 |
 
-Arquivos volumosos e artefatos locais não são versionados. As validações cobrem contagens, duplicidades, nulos críticos, integridade referencial, valores financeiros e coerência temporal.
+O target original é `Attrition_Flag`, transformado no mart em `churn_flag`.
 
-### Limitação temporal encontrada
+As duas colunas `Naive_Bayes_Classifier_*` foram removidas antes da modelagem por apresentarem vazamento direto do target. O identificador do cliente e o texto original da classe também não são utilizados como features.
 
-As datas sintéticas de criação de clientes, abertura de contas e início de empréstimos apresentam inconsistências sistemáticas. Elas não são utilizadas na modelagem temporal. A referência temporal confiável é o histórico observado de transações.
+> O CSV não é versionado neste repositório. Consulte as condições de uso da fonte e faça o upload do arquivo para o bucket `raw` do MinIO.
 
-## Transformações com dbt
+## Arquitetura
+
+```text
+BankChurners.csv
+        ↓
+MinIO / raw
+        ↓
+PostgreSQL / raw.bank_churners
+        ↓
+dbt / staging.stg_bank_churners
+        ↓
+dbt / marts.mart_customer_churn_model
+        ↓
+Jupyter / EDA, benchmark e validação
+        ↓
+MLflow Tracking + Model Registry
+        ↓
+MinIO / artefatos do modelo
+```
+
+Responsabilidades por componente:
+
+| Componente | Responsabilidade |
+|---|---|
+| MinIO | dado bruto e artefatos S3-compatible |
+| PostgreSQL | camada relacional, backend do MLflow e serving futuro |
+| dbt | staging, mart, documentação e testes de qualidade |
+| Jupyter | ingestão, análise, treinamento e validação |
+| MLflow | experimentos, métricas, parâmetros, lineage e Registry |
+| Docker Compose | reprodução e comunicação entre os serviços |
+
+## Camadas de dados
+
+### Raw
+
+`raw.bank_churners` preserva a granularidade de um cliente por linha.
 
 ### Staging
 
-`stg_customers` · `stg_accounts` · `stg_cards` · `stg_transactions` · `stg_merchants` · `stg_branches` · `stg_loans`
+`staging.stg_bank_churners` padroniza nomes, tipos e target. Os testes cobrem identificador, unicidade, valores aceitos e campos críticos.
 
-### Intermediate
+### Mart de Machine Learning
 
-`int_customer_account_summary` · `int_customer_card_summary` · `int_customer_loan_summary` · `int_customer_transaction_summary`
+`marts.mart_customer_churn_model` entrega 10.127 clientes e 21 colunas:
 
-### Mart
+- `customer_id`;
+- `churn_flag`;
+- 19 features numéricas e categóricas;
+- nenhuma coluna direta de leakage.
 
-A `dbt.mart_customer_financial_profile` consolida perfil, contas, saldos, cartões, empréstimos e comportamento transacional em uma linha por cliente.
+As contagens de clientes e churn foram reconciliadas entre MinIO, raw, staging e mart.
 
-## Notebooks
+## Metodologia de Machine Learning
 
-### 01 — Financial Profile Feature Engineering
+### Separação dos dados
 
-Constrói o perfil financeiro atual com **50.000 clientes e 75 colunas**, incluindo:
+Como o dataset não possui uma coluna temporal de observação, foi utilizado split estratificado:
 
-- contas, saldos e concentração financeira;
-- cartões e diversidade de produtos;
-- empréstimos e pressão de dívida;
-- comportamento transacional;
-- Financial Health Score;
-- heurística descritiva de desengajamento.
+- 60% treino;
+- 20% validação;
+- 20% teste reservado.
 
-A heurística de desengajamento não é utilizada como target supervisionado.
+O teste foi utilizado uma única vez após a seleção do modelo e do threshold.
 
-### 02 — Temporal Inactivity Dataset
+### Benchmark
 
-Constrói um dataset point-in-time usando somente histórico anterior ao cutoff.
+Foram avaliados:
 
-| Propriedade | Valor |
-|---|---:|
-| Snapshots cliente-cutoff | 658.587 |
-| Cutoffs trimestrais | 22 |
-| Janela de observação | 180 dias |
-| Janela de predição | 90 dias |
-| Features iniciais | 18 |
-| Colunas finais | 22 |
-| Taxa geral de inatividade | 41,37% |
+1. Logistic Regression;
+2. K-Nearest Neighbors;
+3. Gaussian Naive Bayes;
+4. Decision Tree;
+5. Random Forest;
+6. Extra Trees;
+7. HistGradientBoosting;
+8. XGBoost;
+9. LightGBM;
+10. CatBoost;
+11. Dummy Classifier como baseline.
 
-Split temporal:
+A seleção considerou principalmente **Average Precision**, adequada ao desbalanceamento do target, além de ROC AUC, balanced accuracy, precision, recall e F1.
 
-| Partição | Linhas | Uso |
-|---|---:|---|
-| Treino | 448.919 | Ajuste dos modelos |
-| Validação | 89.934 | Comparação e early stopping |
-| Teste | 59.902 | Reservado para avaliação final |
-| Embargo | 59.832 | Prevenção de sobreposição temporal |
+Também foram realizados:
 
-O dataset, os metadados e o resumo dos splits são registrados no MLflow; os artefatos são persistidos no MinIO.
+- comparação entre treino e validação;
+- validação cruzada estratificada com cinco folds;
+- permutation importance;
+- análise de precision, recall e F1 por threshold;
+- avaliação final em conjunto de teste congelado.
 
-### 03 — Transaction Inactivity Prediction
+As variáveis com maior importância foram `total_transaction_count` e `total_transaction_amount`, seguidas por sinais de relacionamento, saldo rotativo e mudança de comportamento.
 
-Compara modelos lineares e não lineares utilizando a mesma validação temporal. Após a análise de redundância, um conjunto reduzido de 13 features foi usado nos modelos principais.
+## MLOps
 
-Resultados atuais na validação:
+O experimento final é rastreado no MLflow com:
 
-| Modelo | Processamento | ROC AUC | Average Precision |
-|---|---|---:|---:|
-| DummyClassifier | CPU | 0,5000 | 0,4143 |
-| Logistic Regression | CPU | 0,5973 | 0,4833 |
-| HistGradientBoosting | CPU | 0,5970 | 0,4816 |
-| XGBoost | RTX 5060 / CUDA | **0,5980** | **0,4838** |
-| CatBoost | RTX 5060 / CUDA | 0,5971 | 0,4762 |
+- parâmetros do modelo;
+- métricas oficiais e de watchlist;
+- features numéricas e categóricas;
+- thresholds e faixas de risco;
+- resultados do teste final;
+- assinatura e exemplo de entrada;
+- pipeline completo do CatBoost.
 
-Os quatro modelos treináveis convergiram para desempenho semelhante. Isso indica que o principal gargalo atual está no sinal disponível nas features, não apenas na escolha do algoritmo.
+O modelo registrado é:
 
-O threshold de classificação ainda não foi escolhido e o conjunto de teste permanece reservado.
+```text
+finpulse-churn-catboost
+```
 
-## MLflow e MinIO
+O PostgreSQL armazena metadados do MLflow e o MinIO armazena os artefatos. A comunicação Jupyter → MLflow → MinIO foi validada após a reconstrução das imagens Docker.
 
-O experimento `finpulse_temporal_dataset` registra:
-
-- definição e versão do dataset;
-- target, janelas e cutoffs;
-- distribuição dos splits;
-- métricas de inatividade;
-- Parquet temporal;
-- metadados JSON;
-- resumo dos splits.
-
-O PostgreSQL armazena os metadados de tracking e o bucket `mlflow` no MinIO armazena os artefatos.
-
-## Estrutura do repositório
+## Estrutura do projeto
 
 ```text
 finpulse-ai/
-├── data/{raw,processed,curated}
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── curated/
 ├── dbt/finpulse_dbt/
+│   ├── macros/
+│   └── models/
+│       ├── staging/
+│       └── marts/
 ├── docker/
-│   └── mlflow/Dockerfile
-├── docs/
-├── models/
+│   ├── jupyter/
+│   ├── mlflow/
+│   └── postgres/init/
+├── docs/architecture/
 ├── notebooks/
-│   ├── 01_feature_engineering_financial_profile.ipynb
-│   ├── 02_churn_temporal_dataset.ipynb
-│   └── 03_churn_risk_model.ipynb
+│   ├── 00_churn_data_ingestion.ipynb
+│   ├── 01_churn_dashboard_features.ipynb
+│   └── 02_churn_model_training.ipynb
+├── models/
 ├── reports/
-├── sql/{ddl,inserts,quality}
 ├── src/
 ├── docker-compose.yml
 └── README.md
@@ -213,87 +240,127 @@ finpulse-ai/
 
 ### Pré-requisitos
 
-- Docker Desktop com backend WSL2;
-- Docker Compose;
-- driver NVIDIA atualizado para treinamento GPU;
-- aproximadamente 8 GB de memória disponível para os serviços locais.
+- Docker Desktop com Docker Compose;
+- Git;
+- acesso ao arquivo `BankChurners.csv`;
+- GPU NVIDIA opcional.
+
+### 1. Clone o repositório
 
 ```bash
 git clone https://github.com/isaiasjusto/finpulse-ai.git
 cd finpulse-ai
+```
+
+### 2. Construa e inicie os serviços
+
+```bash
 docker compose up -d --build
 docker compose ps
 ```
 
-Acessos locais:
+Serviços locais:
 
-- pgAdmin: http://localhost:5050
-- Jupyter: http://localhost:8888
-- MinIO Console: http://localhost:9001
-- MLflow: http://localhost:5000
-- PostgreSQL externo: `127.0.0.1:5433`
+| Serviço | URL ou porta |
+|---|---|
+| JupyterLab | `http://localhost:8888` |
+| MLflow | `http://localhost:5000` |
+| pgAdmin | `http://localhost:5050` |
+| MinIO API | `http://localhost:9000` |
+| MinIO Console | `http://localhost:9001` |
+| PostgreSQL | `localhost:5433` |
 
-O token do Jupyter pode ser recuperado com:
+Na primeira inicialização, o Compose prepara o banco do MLflow, o usuário do dbt e os buckets `raw`, `processed`, `curated`, `reports` e `mlflow`. Os modelos registrados e seus artefatos são armazenados pelo MLflow no bucket `mlflow`; portanto, não é necessário manter um bucket separado chamado `models`.
 
-```bash
-docker exec finpulse_jupyter jupyter server list
+### 3. Disponibilize o dado bruto
+
+No console do MinIO, envie:
+
+```text
+raw/BankChurners.csv
 ```
 
-Para executar as transformações dbt:
+Depois execute `00_churn_data_ingestion.ipynb` para ingestão e validação das camadas.
+
+### 4. Execute o dbt
+
+O projeto foi validado com `dbt-core 1.11.12` e `dbt-postgres 1.10.2`.
+
+Configure o profile `finpulse_dbt` e execute:
 
 ```bash
 cd dbt/finpulse_dbt
-dbt debug
-dbt run
-dbt test
+dbt build
 ```
 
-> As credenciais presentes no Compose são exclusivas para desenvolvimento local. Uma implantação real deve utilizar variáveis de ambiente e gerenciamento seguro de segredos.
+Em ambientes onde o executável `dbt` é bloqueado, a CLI também pode ser chamada pelo `dbtRunner` em Python.
 
-## Roadmap
+### 5. Execute os notebooks
 
-- [x] Ambiente local com Docker Compose
-- [x] PostgreSQL, pgAdmin, MinIO e Jupyter
-- [x] Carga e qualidade das sete tabelas bancárias
-- [x] Camadas dbt staging, intermediate e mart
-- [x] Perfil financeiro e Financial Health Score
-- [x] Auditoria de qualidade temporal
-- [x] Target temporal sem vazamento circular
-- [x] Dataset com treino, validação, embargo e teste
-- [x] MLflow Tracking Server com PostgreSQL e MinIO
-- [x] Baselines Dummy e Logistic Regression
-- [x] HistGradientBoosting
-- [x] XGBoost e CatBoost com RTX 5060
-- [ ] Dataset temporal v2 com novas features
-- [ ] Otimização dos modelos campeões
-- [ ] Escolha de threshold orientada ao negócio
-- [ ] Avaliação única no conjunto de teste
-- [ ] Model Registry e promoção do campeão
-- [ ] Detecção de anomalias
-- [ ] Camada de recomendações
-- [ ] Orquestração com Airflow
+```text
+00_churn_data_ingestion.ipynb
+01_churn_dashboard_features.ipynb
+02_churn_model_training.ipynb
+```
+
+## Reprodutibilidade
+
+- versões Python fixadas em `requirements.txt` por serviço;
+- imagem do Jupyter fixada por digest;
+- MLflow, CatBoost, XGBoost e LightGBM versionados;
+- volumes persistentes para PostgreSQL e MinIO;
+- inicialização automática de banco, usuário, schemas e buckets;
+- testes de comunicação entre Jupyter, MLflow e MinIO.
+
+As credenciais presentes no Compose são exclusivas para desenvolvimento local. Um ambiente produtivo deve utilizar secrets e usuários com privilégios mínimos.
+
+## Limitações
+
+- O dataset é público e educacional, não representa uma carteira bancária em produção.
+- Não existe timestamp de referência para realizar validação temporal; por isso o split é estratificado.
+- As métricas refletem este dataset e não devem ser generalizadas para outra população sem nova validação.
+- A alta capacidade preditiva depende principalmente de variáveis transacionais fortemente associadas ao target.
+- O projeto não representa recomendação financeira, score regulatório ou decisão automática de crédito.
+
+## Status do projeto
+
+- [x] Ambiente Docker com PostgreSQL, MinIO, Jupyter, pgAdmin e MLflow
+- [x] Dependências versionadas e imagens reproduzíveis
+- [x] Ingestão e validação do dado bruto
+- [x] Modelos dbt de staging e mart
+- [x] Testes de qualidade e auditoria de leakage
+- [x] EDA e features para dashboard
+- [x] Benchmark de dez modelos
+- [x] Análise de overfitting e validação cruzada
+- [x] CatBoost avaliado no teste reservado
+- [x] MLflow Tracking e Model Registry
+- [x] Artefatos persistidos no MinIO
+- [ ] Validação de load-back e alias `champion`
+- [ ] Batch scoring dos clientes
+- [ ] Mart de predições no PostgreSQL
 - [ ] API com FastAPI
 - [ ] Dashboard com Streamlit
-- [ ] Assistente inteligente com LLM/LangChain
-- [ ] Evolução para AWS S3 e SageMaker
+- [ ] Alertas e camada de IA explicativa
 
 ## Próxima etapa
 
-A próxima iteração criará um dataset temporal `v2`, preservando a versão atual como baseline. As novas features explorarão intervalos entre transações, regularidade mensal, tendência, volatilidade, sequências de inatividade e histórico de 180 a 360 dias antes do cutoff.
+O próximo incremento carregará o modelo pelo alias `champion`, calculará a probabilidade de churn dos clientes e gravará no PostgreSQL:
 
-Se diferentes famílias de modelos continuarem próximas de ROC AUC 0,60 após essa evolução, a limitação será documentada como característica do gerador sintético, sem fabricar desempenho artificial.
+```text
+customer_id
+churn_probability
+predicted_churn
+risk_band
+model_version
+scored_at
+```
 
-## Tecnologias
-
-**Implementadas:** Python · Pandas · scikit-learn · PostgreSQL · dbt · Docker · Jupyter · MinIO · MLflow · XGBoost · CatBoost · CUDA
-
-**Planejadas:** Optuna · Airflow · FastAPI · Streamlit · LangChain · AWS S3 · SageMaker
+Essa tabela alimentará o dashboard e os futuros alertas de retenção.
 
 ## Autor
 
-**Isaias Justo**
-
-Projeto de portfólio em Engenharia de Dados, Ciência de Dados, Machine Learning e Inteligência Artificial aplicada ao setor financeiro.
+**Isaias Justo**  
+Data Scientist | Machine Learning | Analytics & Data Engineering
 
 [LinkedIn](https://www.linkedin.com/in/isaias-justo-a8b998185/) · [GitHub](https://github.com/isaiasjusto)
 

@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: stg_bank_churners
+    description: >
+      Dados de clientes de cartão de crédito limpos e padronizados.
+      As colunas produzidas pelo classificador Naive Bayes da fonte
+      original foram intencionalmente excluídas.
+
+    columns:
+      - name: customer_id
+        description: Identificador único do cliente.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: attrition_status
+        description: Situação observada do cliente.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - Existing Customer
+                  - Attrited Customer
+
+      - name: churn_flag
+        description: Target binário, sendo 1 para churn e 0 para cliente ativo.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 0
+                  - 1
+
+      - name: credit_limit
+        description: Limite de crédito do cliente.
+        data_tests:
+          - not_null
+
+      - name: total_transaction_amount
+        description: Valor total transacionado no período observado.
+        data_tests:
+          - not_null
+
+      - name: total_transaction_count
+        description: Quantidade total de transações no período observado.
+        data_tests:
+          - not_null
