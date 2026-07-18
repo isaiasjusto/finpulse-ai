@@ -8,7 +8,7 @@
 [![MLflow](https://img.shields.io/badge/MLflow-Tracking_%26_Registry-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![MinIO](https://img.shields.io/badge/MinIO-S3_Compatible-C72E49?logo=minio&logoColor=white)](https://min.io/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Status](https://img.shields.io/badge/status-modelo_registrado-16A085)](#status-do-projeto)
+[![Status](https://img.shields.io/badge/status-scoring_validado-16A085)](#status-do-projeto)
 
 ![Solução técnica do FinPulse AI para previsão de churn](docs/architecture/finpulse-ai-solution-overview.png)
 
@@ -205,7 +205,41 @@ O modelo registrado é:
 finpulse-churn-catboost
 ```
 
-O PostgreSQL armazena metadados do MLflow e o MinIO armazena os artefatos. A comunicação Jupyter → MLflow → MinIO foi validada após a reconstrução das imagens Docker.
+A versão 3 foi promovida com o alias estável `champion`:
+
+```text
+models:/finpulse-churn-catboost@champion
+```
+
+A validação de load-back recuperou o modelo a partir dos artefatos persistidos no MinIO e executou inferência com as 19 features, sem depender do objeto mantido em memória durante o treinamento.
+
+O batch scoring processou os 10.127 clientes:
+
+| Faixa de risco | Clientes | Probabilidade média |
+|---|---:|---:|
+| Low | 8.354 | 0,0108 |
+| Medium | 174 | 0,3146 |
+| High | 1.599 | 0,9205 |
+
+As previsões foram gravadas em:
+
+```text
+marts.mart_customer_churn_predictions
+```
+
+Um snapshot completo em Parquet foi armazenado no bucket `curated`, enquanto a execução foi registrada no experimento `finpulse-churn-scoring`.
+
+A validação final cruzou PostgreSQL, MLflow e MinIO, confirmando:
+
+- 10.127 clientes únicos;
+- versão 3 do modelo;
+- alias `champion`;
+- Run ID do scoring;
+- integridade do snapshot por SHA-256;
+- correspondência entre o mart e o arquivo recuperado do MinIO.
+
+O PostgreSQL armazena os dados operacionais e os metadados do MLflow. O MinIO armazena os artefatos dos experimentos no bucket `mlflow` e os snapshots de scoring no bucket `curated`.
+
 
 ## Estrutura do projeto
 
@@ -228,7 +262,8 @@ finpulse-ai/
 ├── notebooks/
 │   ├── 00_churn_data_ingestion.ipynb
 │   ├── 01_churn_dashboard_features.ipynb
-│   └── 02_churn_model_training.ipynb
+│   ├── 02_churn_model_training.ipynb
+│   ├── 03_churn_model_registry_validation.ipynb
 ├── models/
 ├── reports/
 ├── src/
@@ -301,6 +336,7 @@ Em ambientes onde o executável `dbt` é bloqueado, a CLI também pode ser chama
 00_churn_data_ingestion.ipynb
 01_churn_dashboard_features.ipynb
 02_churn_model_training.ipynb
+03_churn_model_registry_validation.ipynb
 ```
 
 ## Reprodutibilidade
@@ -335,27 +371,33 @@ As credenciais presentes no Compose são exclusivas para desenvolvimento local. 
 - [x] CatBoost avaliado no teste reservado
 - [x] MLflow Tracking e Model Registry
 - [x] Artefatos persistidos no MinIO
-- [ ] Validação de load-back e alias `champion`
-- [ ] Batch scoring dos clientes
-- [ ] Mart de predições no PostgreSQL
+- [x] Alias `champion` e validação de load-back
+- [x] Batch scoring dos 10.127 clientes
+- [x] Mart de previsões no PostgreSQL
+- [x] Snapshot Parquet no MinIO
+- [x] Execução do scoring registrada no MLflow
+- [x] Validação cruzada entre PostgreSQL, MLflow e MinIO
 - [ ] API com FastAPI
 - [ ] Dashboard com Streamlit
-- [ ] Alertas e camada de IA explicativa
+- [ ] Explicabilidade com SHAP
+- [ ] Assistente de IA
+- [ ] Alertas e automações com n8n
+- [ ] Monitoramento de dados, drift e performance
 
 ## Próxima etapa
 
-O próximo incremento carregará o modelo pelo alias `champion`, calculará a probabilidade de churn dos clientes e gravará no PostgreSQL:
+O próximo incremento implementará uma API REST com FastAPI para disponibilizar o modelo e os dados operacionais.
 
-```text
-customer_id
-churn_probability
-predicted_churn
-risk_band
-model_version
-scored_at
-```
+A API deverá oferecer:
 
-Essa tabela alimentará o dashboard e os futuros alertas de retenção.
+- verificação de saúde do serviço;
+- informações sobre o modelo `champion`;
+- previsão de churn individual;
+- consulta dos clientes de maior risco;
+- resumo das faixas de risco da carteira;
+- acesso controlado aos resultados do mart de previsões.
+
+Essa camada será utilizada pelo dashboard, pela futura explicabilidade com SHAP e pelas automações do projeto.
 
 ## Autor
 
