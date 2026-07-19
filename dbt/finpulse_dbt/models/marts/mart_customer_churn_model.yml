@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: mart_customer_churn_model
+    description: >
+      Dataset analítico com uma linha por cliente, preparado para
+      treinamento e scoring do modelo de churn.
+
+    columns:
+      - name: customer_id
+        description: Identificador do cliente, usado para rastreabilidade.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: churn_flag
+        description: Target binário, sendo 1 para churn e 0 para cliente ativo.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 0
+                  - 1
+
+      - name: months_inactive_last_12m
+        data_tests:
+          - not_null
+
+      - name: total_transaction_amount
+        data_tests:
+          - not_null
+
+      - name: total_transaction_count
+        data_tests:
+          - not_null

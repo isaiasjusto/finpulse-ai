@@ -3,26 +3,25 @@ version: 2
 sources:
   - name: raw
     database: finpulse
-    schema: public
-    description: Raw banking dataset loaded into PostgreSQL.
+    schema: raw
+    description: Dados brutos do dataset BankChurners carregados no PostgreSQL.
+
     tables:
-      - name: customers
-        description: Raw customer records.
+      - name: bank_churners
+        description: Snapshot original de clientes de cartão de crédito e seu status de attrition.
 
-      - name: accounts
-        description: Raw bank account records.
+        columns:
+          - name: client_num
+            description: Identificador único do cliente.
+            tests:
+              - not_null
+              - unique
 
-      - name: cards
-        description: Raw card records.
-
-      - name: merchants
-        description: Raw merchant records.
-
-      - name: branches
-        description: Raw branch records.
-
-      - name: loans
-        description: Raw loan records.
-
-      - name: transactions
-        description: Raw transaction records.
+          - name: attrition_flag
+            description: Situação observada do cliente.
+            tests:
+              - not_null
+              - accepted_values:
+                  values:
+                    - Existing Customer
+                    - Attrited Customer

@@ -1,0 +1,354 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f3f7fc"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#09275b"/>
+      <stop offset=".55" stop-color="#174f9b"/>
+      <stop offset="1" stop-color="#087a55"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#17345c" flood-opacity=".13"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10Z" fill="#174f9b"/>
+    </marker>
+    <style>
+      .title{font:800 47px Inter,Segoe UI,Arial,sans-serif;fill:#071b42}
+      .subtitle{font:500 20px Inter,Segoe UI,Arial,sans-serif;fill:#526681}
+      .boxTitle{font:750 18px Inter,Segoe UI,Arial,sans-serif;fill:#0b2860}
+      .boxSub{font:700 13px Inter,Segoe UI,Arial,sans-serif;fill:#107047}
+      .body{font:500 12px Inter,Segoe UI,Arial,sans-serif;fill:#2f435e}
+      .small{font:450 11px Inter,Segoe UI,Arial,sans-serif;fill:#63758d}
+      .micro{font:650 10px Inter,Segoe UI,Arial,sans-serif;fill:#314964}
+      .resultTitle{font:750 17px Inter,Segoe UI,Arial,sans-serif;fill:#087341}
+      .metric{font:800 23px Inter,Segoe UI,Arial,sans-serif;fill:#0b2860}
+      .metricLabel{font:650 10px Inter,Segoe UI,Arial,sans-serif;fill:#63758d;letter-spacing:.6px}
+      .number{font:800 16px Inter,Segoe UI,Arial,sans-serif;fill:#fff}
+      .footer{font:500 12px Inter,Segoe UI,Arial,sans-serif;fill:#536981}
+      .card{fill:#fff;stroke:#6a9be0;stroke-width:1.5}
+      .inner{fill:#f8fbff;stroke:#ccdbef;stroke-width:1}
+      .greenInner{fill:#f2fbf6;stroke:#a8d8bd;stroke-width:1}
+      .orangeInner{fill:#fff8ef;stroke:#efbd78;stroke-width:1}
+      .divider{stroke:#d7e2ef;stroke-width:1}
+      .flow{stroke:#174f9b;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#page)"/>
+  <rect x="0" y="0" width="1920" height="9" fill="url(#hero)"/>
+  <text x="960" y="58" text-anchor="middle" class="title">FinPulse AI — Solução Técnica para Previsão de Churn</text>
+  <text x="960" y="88" text-anchor="middle" class="subtitle">Dados confiáveis, Machine Learning rastreável e uma base pronta para decisões de retenção</text>
+
+  <!-- 1 DATA -->
+  <g filter="url(#shadow)">
+    <rect x="20" y="116" width="220" height="540" rx="15" class="card"/>
+  </g>
+  <circle cx="45" cy="143" r="16" fill="#0b2860"/><text x="45" y="149" text-anchor="middle" class="number">1</text>
+  <text x="70" y="149" class="boxTitle">Fontes de Dados</text>
+  <rect x="35" y="172" width="190" height="83" rx="10" class="inner"/>
+  <circle cx="57" cy="194" r="12" fill="#174f9b"/><text x="57" y="198" text-anchor="middle" class="micro" fill="#fff">CSV</text>
+  <text x="77" y="192" class="boxSub">BankChurners.csv</text>
+  <text x="77" y="212" class="small">10.127 clientes</text>
+  <text x="77" y="230" class="small">23 colunas brutas</text>
+  <rect x="35" y="266" width="190" height="72" rx="10" class="inner"/>
+  <circle cx="57" cy="290" r="12" fill="#16845b"/><text x="57" y="294" text-anchor="middle" class="micro" fill="#fff">ID</text>
+  <text x="77" y="288" class="boxSub">Perfil do cliente</text>
+  <text x="77" y="308" class="small">Idade, gênero, educação</text>
+  <text x="77" y="325" class="small">renda e relacionamento</text>
+  <rect x="35" y="349" width="190" height="72" rx="10" class="inner"/>
+  <circle cx="57" cy="373" r="12" fill="#16845b"/><text x="57" y="377" text-anchor="middle" class="micro" fill="#fff">TX</text>
+  <text x="77" y="371" class="boxSub">Comportamento</text>
+  <text x="77" y="391" class="small">Transações, utilização</text>
+  <text x="77" y="408" class="small">inatividade e contatos</text>
+  <rect x="35" y="432" width="190" height="86" rx="10" class="greenInner"/>
+  <circle cx="57" cy="456" r="12" fill="#087341"/><text x="57" y="460" text-anchor="middle" class="micro" fill="#fff">Y</text>
+  <text x="77" y="454" class="boxSub">Target observável</text>
+  <text x="77" y="475" class="small">Attrition_Flag</text>
+  <text x="77" y="493" class="small">1.627 attrited</text>
+  <text x="77" y="510" class="small">16,07% de churn</text>
+  <line x1="35" y1="537" x2="225" y2="537" class="divider"/>
+  <text x="35" y="561" class="boxSub">Auditoria inicial</text>
+  <text x="35" y="583" class="small">✓ Sem nulos</text>
+  <text x="35" y="602" class="small">✓ IDs únicos</text>
+  <text x="35" y="621" class="small">✓ Target consistente</text>
+  <text x="35" y="640" class="small">✓ Leakage identificado</text>
+
+  <!-- 2 INFRA -->
+  <g filter="url(#shadow)"><rect x="255" y="116" width="235" height="540" rx="15" class="card"/></g>
+  <circle cx="280" cy="143" r="16" fill="#0b2860"/><text x="280" y="149" text-anchor="middle" class="number">2</text>
+  <text x="305" y="149" class="boxTitle">Infraestrutura Docker</text>
+  <text x="372" y="181" text-anchor="middle" class="boxSub">Docker Compose</text>
+  <text x="372" y="200" text-anchor="middle" class="small">ambiente local reproduzível</text>
+  <rect x="270" y="222" width="98" height="96" rx="11" class="inner"/>
+  <circle cx="319" cy="250" r="18" fill="#2463aa"/><text x="319" y="255" text-anchor="middle" class="number">DB</text>
+  <text x="319" y="282" text-anchor="middle" class="boxSub">PostgreSQL</text>
+  <text x="319" y="301" text-anchor="middle" class="small">Banco</text>
+  <rect x="378" y="222" width="97" height="96" rx="11" class="inner"/>
+  <circle cx="426" cy="250" r="18" fill="#f47d31"/><text x="426" y="255" text-anchor="middle" class="number">NB</text>
+  <text x="426" y="282" text-anchor="middle" class="boxSub">Jupyter</text>
+  <text x="426" y="301" text-anchor="middle" class="small">Notebooks</text>
+  <rect x="270" y="328" width="98" height="96" rx="11" class="inner"/>
+  <circle cx="319" cy="356" r="18" fill="#c82d4c"/><text x="319" y="361" text-anchor="middle" class="number">S3</text>
+  <text x="319" y="388" text-anchor="middle" class="boxSub">MinIO</text>
+  <text x="319" y="407" text-anchor="middle" class="small">Data Lake</text>
+  <rect x="378" y="328" width="97" height="96" rx="11" class="inner"/>
+  <circle cx="426" cy="356" r="18" fill="#1595d3"/><text x="426" y="361" text-anchor="middle" class="number">ML</text>
+  <text x="426" y="388" text-anchor="middle" class="boxSub">MLflow</text>
+  <text x="426" y="407" text-anchor="middle" class="small">Registry</text>
+  <rect x="270" y="435" width="205" height="83" rx="11" class="greenInner"/>
+  <text x="372" y="461" text-anchor="middle" class="boxSub">Imagens versionadas</text>
+  <text x="372" y="482" text-anchor="middle" class="small">Jupyter fixado por digest</text>
+  <text x="372" y="501" text-anchor="middle" class="small">dependências por serviço</text>
+  <line x1="270" y1="537" x2="475" y2="537" class="divider"/>
+  <text x="270" y="562" class="boxSub">Volumes persistentes</text>
+  <text x="270" y="584" class="small">PostgreSQL · MinIO · pgAdmin</text>
+  <text x="270" y="608" class="boxSub">GPU opcional</text>
+  <text x="270" y="630" class="small">NVIDIA via Docker Compose</text>
+
+  <!-- 3 STORAGE -->
+  <g filter="url(#shadow)"><rect x="505" y="116" width="260" height="540" rx="15" class="card"/></g>
+  <circle cx="530" cy="143" r="16" fill="#0b2860"/><text x="530" y="149" text-anchor="middle" class="number">3</text>
+  <text x="555" y="149" class="boxTitle">Data Lake + PostgreSQL</text>
+  <rect x="520" y="173" width="230" height="98" rx="11" class="inner"/>
+  <text x="635" y="198" text-anchor="middle" class="boxSub">MinIO · Object Storage</text>
+  <rect x="535" y="216" width="55" height="25" rx="8" fill="#eaf2ff"/><text x="562" y="233" text-anchor="middle" class="micro">raw</text>
+  <rect x="596" y="216" width="70" height="25" rx="8" fill="#eaf2ff"/><text x="631" y="233" text-anchor="middle" class="micro">processed</text>
+  <rect x="672" y="216" width="62" height="25" rx="8" fill="#eaf2ff"/><text x="703" y="233" text-anchor="middle" class="micro">curated</text>
+  <text x="635" y="258" text-anchor="middle" class="small">reports · mlflow</text>
+  <rect x="520" y="284" width="230" height="146" rx="11" class="inner"/>
+  <text x="635" y="309" text-anchor="middle" class="boxSub">PostgreSQL · finpulse</text>
+  <rect x="535" y="326" width="200" height="26" rx="7" fill="#eaf2ff"/><text x="635" y="344" text-anchor="middle" class="micro">raw.bank_churners</text>
+  <rect x="535" y="360" width="200" height="26" rx="7" fill="#edf9f2"/><text x="635" y="378" text-anchor="middle" class="micro">staging.stg_bank_churners</text>
+  <rect x="535" y="394" width="200" height="26" rx="7" fill="#f3edff"/><text x="635" y="412" text-anchor="middle" class="micro">marts.mart_customer_churn_model</text>
+  <rect x="520" y="443" width="230" height="75" rx="11" class="greenInner"/>
+  <text x="635" y="468" text-anchor="middle" class="boxSub">Backend MLflow</text>
+  <text x="635" y="490" text-anchor="middle" class="small">database mlflow</text>
+  <text x="635" y="507" text-anchor="middle" class="small">metadados e Registry</text>
+  <line x1="520" y1="537" x2="750" y2="537" class="divider"/>
+  <text x="520" y="562" class="boxSub">Separação de responsabilidades</text>
+  <text x="520" y="584" class="small">Objetos no MinIO</text>
+  <text x="520" y="603" class="small">Consultas e serving no PostgreSQL</text>
+  <text x="520" y="622" class="small">Lineage e modelos no MLflow</text>
+
+  <!-- 4 DBT -->
+  <g filter="url(#shadow)"><rect x="780" y="116" width="235" height="540" rx="15" class="card"/></g>
+  <circle cx="805" cy="143" r="16" fill="#0b2860"/><text x="805" y="149" text-anchor="middle" class="number">4</text>
+  <text x="830" y="149" class="boxTitle">Pipeline dbt</text>
+  <rect x="795" y="174" width="205" height="76" rx="10" class="inner"/>
+  <circle cx="819" cy="198" r="12" fill="#174f9b"/><text x="819" y="202" text-anchor="middle" class="micro" fill="#fff">S</text>
+  <text x="840" y="196" class="boxSub">Source</text>
+  <text x="840" y="216" class="small">raw.bank_churners</text>
+  <text x="840" y="233" class="small">4 testes de origem</text>
+  <path d="M897 251 V267" stroke="#174f9b" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="795" y="270" width="205" height="90" rx="10" class="inner"/>
+  <circle cx="819" cy="294" r="12" fill="#174f9b"/><text x="819" y="298" text-anchor="middle" class="micro" fill="#fff">T</text>
+  <text x="840" y="292" class="boxSub">Staging</text>
+  <text x="840" y="312" class="small">nomes e tipos padronizados</text>
+  <text x="840" y="330" class="small">churn_flag binário</text>
+  <text x="840" y="348" class="small">9 testes aprovados</text>
+  <path d="M897 361 V377" stroke="#174f9b" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="795" y="380" width="205" height="100" rx="10" class="greenInner"/>
+  <circle cx="819" cy="404" r="12" fill="#087341"/><text x="819" y="408" text-anchor="middle" class="micro" fill="#fff">M</text>
+  <text x="840" y="402" class="boxSub">Mart de ML</text>
+  <text x="840" y="422" class="small">10.127 clientes</text>
+  <text x="840" y="440" class="small">21 colunas</text>
+  <text x="840" y="458" class="small">19 features + ID + target</text>
+  <line x1="795" y1="500" x2="1000" y2="500" class="divider"/>
+  <text x="795" y="525" class="boxSub">Quality gates</text>
+  <text x="795" y="549" class="small">✓ 10.127 em todas as camadas</text>
+  <text x="795" y="570" class="small">✓ 1.627 churn em todas</text>
+  <text x="795" y="591" class="small">✓ Naive Bayes removido</text>
+  <text x="795" y="612" class="small">✓ Sem target textual no modelo</text>
+  <text x="795" y="633" class="small">✓ dbt build e testes</text>
+
+  <!-- 5 ANALYTICS -->
+  <g filter="url(#shadow)"><rect x="1030" y="116" width="235" height="540" rx="15" class="card"/></g>
+  <circle cx="1055" cy="143" r="16" fill="#0b2860"/><text x="1055" y="149" text-anchor="middle" class="number">5</text>
+  <text x="1080" y="149" class="boxTitle">Análise e Features</text>
+  <rect x="1045" y="174" width="205" height="92" rx="10" class="inner"/>
+  <text x="1060" y="198" class="boxSub">00 · Data ingestion</text>
+  <text x="1060" y="219" class="small">Leitura S3 via boto3</text>
+  <text x="1060" y="238" class="small">Validação e reconciliação</text>
+  <text x="1060" y="257" class="small">MinIO ↔ PostgreSQL ↔ dbt</text>
+  <rect x="1045" y="278" width="205" height="92" rx="10" class="inner"/>
+  <text x="1060" y="302" class="boxSub">01 · Dashboard features</text>
+  <text x="1060" y="323" class="small">EDA e segmentações</text>
+  <text x="1060" y="342" class="small">Taxa de churn por bandas</text>
+  <text x="1060" y="361" class="small">KPIs comportamentais</text>
+  <rect x="1045" y="382" width="205" height="118" rx="10" class="greenInner"/>
+  <text x="1060" y="406" class="boxSub">Sinais principais</text>
+  <text x="1060" y="430" class="small">① Total de transações</text>
+  <text x="1060" y="450" class="small">② Valor transacionado</text>
+  <text x="1060" y="470" class="small">③ Relacionamento e saldo</text>
+  <text x="1060" y="490" class="small">④ Mudança de comportamento</text>
+  <line x1="1045" y1="520" x2="1250" y2="520" class="divider"/>
+  <text x="1045" y="545" class="boxSub">Target imbalance</text>
+  <text x="1045" y="567" class="small">16,07% positivos</text>
+  <text x="1045" y="591" class="boxSub">Métrica de seleção</text>
+  <text x="1045" y="613" class="small">Average Precision (PR-AUC)</text>
+  <text x="1045" y="635" class="small">com ROC AUC, F1 e recall</text>
+
+  <!-- 6 MODELS -->
+  <g filter="url(#shadow)"><rect x="1280" y="116" width="260" height="540" rx="15" class="card"/></g>
+  <circle cx="1305" cy="143" r="16" fill="#0b2860"/><text x="1305" y="149" text-anchor="middle" class="number">6</text>
+  <text x="1330" y="149" class="boxTitle">Modelos Analíticos</text>
+  <rect x="1295" y="174" width="230" height="132" rx="10" class="inner"/>
+  <text x="1310" y="198" class="boxSub">Benchmark · 10 modelos</text>
+  <text x="1310" y="221" class="small">Logistic Regression · KNN</text>
+  <text x="1310" y="240" class="small">Naive Bayes · Decision Tree</text>
+  <text x="1310" y="259" class="small">Random Forest · Extra Trees</text>
+  <text x="1310" y="278" class="small">HistGB · XGBoost · LightGBM</text>
+  <text x="1310" y="297" class="small">CatBoost + Dummy baseline</text>
+  <rect x="1295" y="318" width="230" height="108" rx="10" class="inner"/>
+  <text x="1310" y="342" class="boxSub">Validação robusta</text>
+  <text x="1310" y="365" class="small">Treino × validação</text>
+  <text x="1310" y="384" class="small">Cross-validation 5-fold</text>
+  <text x="1310" y="403" class="small">Permutation importance</text>
+  <text x="1310" y="422" class="small">Teste final reservado</text>
+  <rect x="1295" y="438" width="230" height="116" rx="10" class="greenInner"/>
+  <text x="1310" y="463" class="boxSub">CatBoost · campeão</text>
+  <text x="1310" y="487" class="metric">0,9934</text><text x="1400" y="486" class="micro">ROC AUC</text>
+  <text x="1310" y="516" class="metric">0,9699</text><text x="1400" y="515" class="micro">PR-AUC</text>
+  <text x="1310" y="545" class="metric">0,9206</text><text x="1400" y="544" class="micro">F1 TESTE</text>
+  <line x1="1295" y1="574" x2="1525" y2="574" class="divider"/>
+  <text x="1295" y="599" class="boxSub">Thresholds</text>
+  <text x="1295" y="621" class="small">0,2075 watchlist</text>
+  <text x="1410" y="621" class="small">0,4762 oficial</text>
+  <text x="1295" y="642" class="small">Low · Medium · High</text>
+
+  <!-- RIGHT RESULTS -->
+  <g filter="url(#shadow)"><rect x="1555" y="116" width="345" height="844" rx="16" fill="#fbfffc" stroke="#21935a" stroke-width="1.8"/></g>
+  <circle cx="1584" cy="146" r="18" fill="#087341"/><text x="1584" y="152" text-anchor="middle" class="number">✓</text>
+  <text x="1613" y="143" class="resultTitle">Resultado Técnico Atual</text>
+  <text x="1613" y="163" class="small">e valor planejado para o negócio</text>
+  <rect x="1572" y="188" width="311" height="106" rx="12" class="greenInner"/>
+  <circle cx="1600" cy="217" r="16" fill="#087341"/><text x="1600" y="222" text-anchor="middle" class="number">ML</text>
+  <text x="1625" y="214" class="resultTitle">Modelo confiável</text>
+  <text x="1625" y="238" class="body">Teste reservado e validação cruzada</text>
+  <text x="1625" y="258" class="small">sem ajuste posterior no teste</text>
+  <text x="1625" y="278" class="small">métricas e lineage rastreáveis</text>
+  <rect x="1572" y="306" width="311" height="106" rx="12" class="greenInner"/>
+  <circle cx="1600" cy="335" r="16" fill="#087341"/><text x="1600" y="340" text-anchor="middle" class="number">RG</text>
+  <text x="1625" y="332" class="resultTitle">Governança</text>
+  <text x="1625" y="356" class="body">MLflow Tracking + Registry</text>
+  <text x="1625" y="376" class="small">features, thresholds e ambiente</text>
+  <text x="1625" y="396" class="small">artefatos persistidos no MinIO</text>
+  <rect x="1572" y="424" width="311" height="106" rx="12" class="greenInner"/>
+  <circle cx="1600" cy="453" r="16" fill="#087341"/><text x="1600" y="458" text-anchor="middle" class="number">DX</text>
+  <text x="1625" y="450" class="resultTitle">Decisão explicável</text>
+  <text x="1625" y="474" class="body">Probabilidade e faixa de risco</text>
+  <text x="1625" y="494" class="small">dois thresholds operacionais</text>
+  <text x="1625" y="514" class="small">variáveis comportamentais auditadas</text>
+  <rect x="1572" y="542" width="311" height="123" rx="12" class="orangeInner"/>
+  <circle cx="1600" cy="571" r="16" fill="#de851f"/><text x="1600" y="576" text-anchor="middle" class="number">→</text>
+  <text x="1625" y="568" class="resultTitle" fill="#b56610">Retenção priorizada</text>
+  <text x="1625" y="592" class="body">Scoring da carteira</text>
+  <text x="1625" y="612" class="small">clientes high risk e watchlist</text>
+  <text x="1625" y="632" class="small">ações direcionadas por risco</text>
+  <text x="1625" y="652" class="small">próxima etapa do produto</text>
+  <rect x="1572" y="677" width="311" height="123" rx="12" class="orangeInner"/>
+  <circle cx="1600" cy="706" r="16" fill="#de851f"/><text x="1600" y="711" text-anchor="middle" class="number">BI</text>
+  <text x="1625" y="703" class="resultTitle" fill="#b56610">Visão operacional</text>
+  <text x="1625" y="727" class="body">Dashboard e alertas</text>
+  <text x="1625" y="747" class="small">KPIs, segmentos e clientes críticos</text>
+  <text x="1625" y="767" class="small">FastAPI + Streamlit</text>
+  <text x="1625" y="787" class="small">IA explicativa no roadmap</text>
+  <rect x="1572" y="812" width="311" height="126" rx="12" fill="#eef6ff" stroke="#9cc0ec"/>
+  <text x="1590" y="840" class="boxTitle">Próximo incremento</text>
+  <text x="1590" y="866" class="body">Registry @champion → batch scoring</text>
+  <text x="1590" y="887" class="body">→ predictions mart → dashboard</text>
+  <rect x="1590" y="905" width="92" height="21" rx="10" fill="#d87913"/>
+  <text x="1636" y="920" text-anchor="middle" class="chip" fill="#fff">ROADMAP</text>
+
+  <!-- CONNECT TOP -->
+  <path d="M240 386 H250" class="flow"/>
+  <path d="M490 386 H500" class="flow"/>
+  <path d="M765 386 H775" class="flow"/>
+  <path d="M1015 386 H1025" class="flow"/>
+  <path d="M1265 386 H1275" class="flow"/>
+  <path d="M1540 386 H1550" class="flow"/>
+
+  <!-- BOTTOM SECTION 7 -->
+  <g filter="url(#shadow)"><rect x="20" y="674" width="600" height="286" rx="15" class="card"/></g>
+  <circle cx="45" cy="701" r="16" fill="#0b2860"/><text x="45" y="707" text-anchor="middle" class="number">7</text>
+  <text x="70" y="707" class="boxTitle">MLOps, Rastreabilidade e Explicabilidade</text>
+  <rect x="35" y="730" width="176" height="104" rx="11" class="inner"/>
+  <text x="50" y="754" class="boxSub">MLflow Tracking</text>
+  <text x="50" y="776" class="small">14 métricas finais</text>
+  <text x="50" y="795" class="small">parâmetros e tags</text>
+  <text x="50" y="814" class="small">experimentos comparáveis</text>
+  <rect x="222" y="730" width="176" height="104" rx="11" class="inner"/>
+  <text x="237" y="754" class="boxSub">Model Registry</text>
+  <text x="237" y="776" class="small">finpulse-churn-catboost</text>
+  <text x="237" y="795" class="small">assinatura e input example</text>
+  <text x="237" y="814" class="small">ambiente reprodutível</text>
+  <rect x="409" y="730" width="196" height="104" rx="11" class="inner"/>
+  <text x="424" y="754" class="boxSub">MinIO · artefatos</text>
+  <text x="424" y="776" class="small">modelo serializado</text>
+  <text x="424" y="795" class="small">features + thresholds</text>
+  <text x="424" y="814" class="small">resultados de avaliação</text>
+  <rect x="35" y="848" width="270" height="92" rx="11" class="greenInner"/>
+  <text x="50" y="873" class="boxSub">Explicabilidade</text>
+  <text x="50" y="896" class="small">Permutation importance no validation set</text>
+  <text x="50" y="916" class="small">transações e valores dominam o sinal</text>
+  <rect x="320" y="848" width="285" height="92" rx="11" class="greenInner"/>
+  <text x="335" y="873" class="boxSub">Controles metodológicos</text>
+  <text x="335" y="896" class="small">Leakage removido · teste congelado</text>
+  <text x="335" y="916" class="small">limitações documentadas no README</text>
+
+  <!-- BOTTOM SECTION 8 -->
+  <g filter="url(#shadow)"><rect x="640" y="674" width="900" height="286" rx="15" class="card"/></g>
+  <circle cx="665" cy="701" r="16" fill="#0b2860"/><text x="665" y="707" text-anchor="middle" class="number">8</text>
+  <text x="690" y="707" class="boxTitle">Produto de Retenção · Dashboard e Alertas</text>
+  <text x="1240" y="706" class="boxSub">ROADMAP — ainda não implementado</text>
+  <rect x="660" y="729" width="270" height="211" rx="12" class="orangeInner"/>
+  <text x="678" y="756" class="boxSub">Pipeline de scoring</text>
+  <text x="678" y="782" class="body">1. Carregar modelo @champion</text>
+  <text x="678" y="806" class="body">2. Calcular churn_probability</text>
+  <text x="678" y="830" class="body">3. Aplicar risk_band</text>
+  <text x="678" y="854" class="body">4. Gravar predictions mart</text>
+  <text x="678" y="878" class="body">5. Expor via FastAPI</text>
+  <text x="678" y="902" class="body">6. Consumir no Streamlit</text>
+  <rect x="678" y="916" width="180" height="18" rx="9" fill="#d87913"/>
+  <text x="768" y="929" text-anchor="middle" class="chip" fill="#fff">PRÓXIMA ENTREGA</text>
+  <!-- dashboard mock -->
+  <rect x="950" y="729" width="570" height="211" rx="13" fill="#0b1729" stroke="#1f3c60" stroke-width="2"/>
+  <text x="970" y="753" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#eaf3ff">FinPulse AI · Churn Monitoring</text>
+  <rect x="970" y="766" width="122" height="48" rx="7" fill="#12243b"/><text x="982" y="783" class="micro" fill="#8ba2bd">CLIENTES</text><text x="982" y="804" font-family="Inter,Arial" font-size="17" font-weight="700" fill="#fff">10.127</text>
+  <rect x="1102" y="766" width="122" height="48" rx="7" fill="#12243b"/><text x="1114" y="783" class="micro" fill="#8ba2bd">HIGH RISK</text><text x="1114" y="804" font-family="Inter,Arial" font-size="17" font-weight="700" fill="#ff7f74">—</text>
+  <rect x="1234" y="766" width="122" height="48" rx="7" fill="#12243b"/><text x="1246" y="783" class="micro" fill="#8ba2bd">WATCHLIST</text><text x="1246" y="804" font-family="Inter,Arial" font-size="17" font-weight="700" fill="#ffc35d">—</text>
+  <rect x="1366" y="766" width="134" height="48" rx="7" fill="#12243b"/><text x="1378" y="783" class="micro" fill="#8ba2bd">MODEL VERSION</text><text x="1378" y="804" font-family="Inter,Arial" font-size="17" font-weight="700" fill="#5ce1c3">champion</text>
+  <rect x="970" y="825" width="350" height="92" rx="8" fill="#12243b"/>
+  <text x="982" y="844" class="micro" fill="#8ba2bd">DISTRIBUIÇÃO DE RISCO</text>
+  <line x1="987" y1="897" x2="1303" y2="897" stroke="#38516d"/>
+  <polyline points="990,886 1030,882 1070,865 1110,875 1150,846 1190,861 1230,842 1270,852 1300,834" fill="none" stroke="#58d9be" stroke-width="3"/>
+  <rect x="1330" y="825" width="170" height="92" rx="8" fill="#12243b"/>
+  <text x="1342" y="844" class="micro" fill="#8ba2bd">ALERTAS</text>
+  <circle cx="1346" cy="865" r="4" fill="#ff7f74"/><text x="1358" y="869" class="micro" fill="#d6e2f2">High risk</text>
+  <circle cx="1346" cy="885" r="4" fill="#ffc35d"/><text x="1358" y="889" class="micro" fill="#d6e2f2">Watchlist</text>
+  <circle cx="1346" cy="905" r="4" fill="#5ce1c3"/><text x="1358" y="909" class="micro" fill="#d6e2f2">Low risk</text>
+
+  <!-- EXECUTION FOOTER -->
+  <rect x="20" y="978" width="1880" height="80" rx="15" fill="#fff" stroke="#7fa8df" stroke-width="1.4"/>
+  <text x="43" y="1005" class="boxTitle">Fluxo de Execução</text>
+  <rect x="43" y="1017" width="150" height="26" rx="8" fill="#eaf2ff"/><text x="118" y="1035" text-anchor="middle" class="micro">docker compose up</text>
+  <path d="M198 1030 H235" class="flow"/>
+  <rect x="240" y="1017" width="150" height="26" rx="8" fill="#eaf2ff"/><text x="315" y="1035" text-anchor="middle" class="micro">MinIO raw</text>
+  <path d="M395 1030 H432" class="flow"/>
+  <rect x="437" y="1017" width="150" height="26" rx="8" fill="#eaf2ff"/><text x="512" y="1035" text-anchor="middle" class="micro">Notebook 00</text>
+  <path d="M592 1030 H629" class="flow"/>
+  <rect x="634" y="1017" width="150" height="26" rx="8" fill="#eaf2ff"/><text x="709" y="1035" text-anchor="middle" class="micro">dbt build</text>
+  <path d="M789 1030 H826" class="flow"/>
+  <rect x="831" y="1017" width="150" height="26" rx="8" fill="#eaf2ff"/><text x="906" y="1035" text-anchor="middle" class="micro">EDA + benchmark</text>
+  <path d="M986 1030 H1023" class="flow"/>
+  <rect x="1028" y="1017" width="150" height="26" rx="8" fill="#edf9f2"/><text x="1103" y="1035" text-anchor="middle" class="micro">CatBoost final</text>
+  <path d="M1183 1030 H1220" class="flow"/>
+  <rect x="1225" y="1017" width="150" height="26" rx="8" fill="#edf9f2"/><text x="1300" y="1035" text-anchor="middle" class="micro">MLflow Registry</text>
+  <path d="M1380 1030 H1417" stroke="#d87913" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  <rect x="1422" y="1017" width="200" height="26" rx="8" fill="#fff1df"/><text x="1522" y="1035" text-anchor="middle" class="micro">scoring + predictions</text>
+  <path d="M1627 1030 H1664" stroke="#d87913" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  <rect x="1669" y="1017" width="205" height="26" rx="8" fill="#fff1df"/><text x="1771" y="1035" text-anchor="middle" class="micro">dashboard + alertas</text>
+</svg>
