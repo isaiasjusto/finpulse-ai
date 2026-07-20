@@ -96,6 +96,18 @@ services:
       --port 5000
     ports:
       - "5000:5000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,7 +137,56 @@ services:
                 - gpu
     networks:
       - finpulse_network
-
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    container_name: finpulse_api
+    restart: unless-stopped
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_DEFAULT_REGION: us-east-1
+      MODEL_NAME: finpulse-churn-catboost
+      MODEL_ALIAS: champion
+      DATABASE_URL: postgresql+psycopg2://finpulse_user:finpulse_password@postgres:5432/finpulse
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finpulse_network
+  api-tests:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile.test
+    environment:
+      API_BASE_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    profiles:
+      - test
+    networks:
+      - finpulse_network
 volumes:
   postgres_data:
   pgadmin_data:

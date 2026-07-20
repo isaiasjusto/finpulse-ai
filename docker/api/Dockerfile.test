@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY docker/api/requirements-test.txt /tmp/requirements-test.txt
+
+RUN pip install \
+    --no-cache-dir \
+    --requirement /tmp/requirements-test.txt
+
+COPY tests /app/tests
+
+CMD ["pytest", "-q", "tests/api"]
