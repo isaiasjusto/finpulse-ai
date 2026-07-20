@@ -7,14 +7,15 @@
 [![dbt](https://img.shields.io/badge/dbt-Analytics_Engineering-FF694B?logo=dbt&logoColor=white)](https://www.getdbt.com/)
 [![MLflow](https://img.shields.io/badge/MLflow-Tracking_%26_Registry-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![MinIO](https://img.shields.io/badge/MinIO-S3_Compatible-C72E49?logo=minio&logoColor=white)](https://min.io/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Model_Serving-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Status](https://img.shields.io/badge/status-scoring_validado-16A085)](#status-do-projeto)
+[![Status](https://img.shields.io/badge/status-API_validada-16A085)](#status-do-projeto)
 
 ![Solução técnica do FinPulse AI para previsão de churn](docs/architecture/finpulse-ai-solution-overview.png)
 
 ## Visão geral
 
-O **FinPulse AI** transforma dados de clientes de cartão de crédito em uma solução rastreável de previsão de churn. O projeto cobre o fluxo completo entre armazenamento, qualidade, transformação analítica, experimentação, validação e registro do modelo.
+O **FinPulse AI** transforma dados de clientes de cartão de crédito em uma solução rastreável de previsão de churn. O projeto cobre o fluxo completo entre armazenamento, qualidade, transformação analítica, experimentação, validação, registro e serving do modelo.
 
 O objetivo é estimar a probabilidade de um cliente encerrar o relacionamento e disponibilizar esse sinal para ações de retenção, alertas e dashboards.
 
@@ -24,6 +25,7 @@ O projeto foi construído como portfólio prático de:
 - Analytics Engineering com dbt;
 - Ciência de Dados e Machine Learning;
 - MLOps com MLflow e MinIO;
+- model serving com FastAPI;
 - arquitetura local reproduzível com Docker Compose.
 
 ## Resultado atual
@@ -113,6 +115,10 @@ Jupyter / EDA, benchmark e validação
 MLflow Tracking + Model Registry
         ↓
 MinIO / artefatos do modelo
+        ↓
+FastAPI / champion em memória
+        ↓
+Dashboard e assistente de IA
 ```
 
 Responsabilidades por componente:
@@ -120,10 +126,11 @@ Responsabilidades por componente:
 | Componente | Responsabilidade |
 |---|---|
 | MinIO | dado bruto e artefatos S3-compatible |
-| PostgreSQL | camada relacional, backend do MLflow e serving futuro |
+| PostgreSQL | dados operacionais, mart de previsões e backend do MLflow |
 | dbt | staging, mart, documentação e testes de qualidade |
 | Jupyter | ingestão, análise, treinamento e validação |
 | MLflow | experimentos, métricas, parâmetros, lineage e Registry |
+| FastAPI | serving do champion, consultas operacionais e contrato HTTP |
 | Docker Compose | reprodução e comunicação entre os serviços |
 
 ## Camadas de dados
@@ -240,11 +247,69 @@ A validação final cruzou PostgreSQL, MLflow e MinIO, confirmando:
 
 O PostgreSQL armazena os dados operacionais e os metadados do MLflow. O MinIO armazena os artefatos dos experimentos no bucket `mlflow` e os snapshots de scoring no bucket `curated`.
 
+## API e model serving
+
+A FastAPI carrega uma única vez, durante a inicialização, o modelo resolvido pela URI estável:
+
+```text
+models:/finpulse-churn-catboost@champion
+```
+
+O artefato é recuperado pelo MLflow a partir do MinIO e mantido em memória para as inferências seguintes. Dessa forma, cada requisição de previsão não precisa baixar o modelo novamente.
+
+Os dados operacionais são consultados no PostgreSQL por meio do SQLAlchemy. O dashboard e o futuro assistente de IA utilizarão a API como contrato de acesso, sem conexão direta com o banco ou com o Model Registry.
+
+### Endpoints
+
+| Método | Rota | Responsabilidade |
+|---|---|---|
+| `GET` | `/health` | verifica API, champion e PostgreSQL |
+| `GET` | `/model-info` | retorna versão, alias, Run ID e origem do modelo |
+| `GET` | `/portfolio/summary` | entrega os indicadores consolidados da carteira |
+| `GET` | `/customers` | lista clientes com filtro de risco e paginação |
+| `GET` | `/customers/{customer_id}` | retorna features e previsão armazenada do cliente |
+| `POST` | `/predict` | executa inferência a partir das 19 features |
+| `POST` | `/customers/{customer_id}/predict` | busca o cliente, executa nova inferência e compara com o scoring armazenado |
+
+A documentação OpenAPI é gerada automaticamente e pode ser explorada em:
+
+```text
+http://localhost:8000/docs
+```
+
+### Testes automatizados
+
+Uma suíte black-box com `pytest` e `httpx` executa requisições HTTP reais contra a API em um contêiner temporário. Os nove cenários cobrem:
+
+- saúde dos componentes;
+- resolução do alias `champion`;
+- consistência do resumo da carteira;
+- consulta de cliente existente;
+- resposta `404` para cliente inexistente;
+- filtro e ordenação por faixa de risco;
+- resposta `422` para filtro inválido;
+- predição por identificador;
+- predição com as 19 features.
+
+Execute a suíte com:
+
+```bash
+docker compose --profile test run --rm api-tests
+```
+
+O contêiner de testes é removido após a execução, enquanto a imagem permanece disponível para novas validações.
 
 ## Estrutura do projeto
 
 ```text
 finpulse-ai/
+├── api/
+│   ├── main.py
+│   ├── model_service.py
+│   ├── database.py
+│   ├── customer_repository.py
+│   ├── portfolio_repository.py
+│   └── schemas.py
 ├── data/
 │   ├── raw/
 │   ├── processed/
@@ -255,6 +320,7 @@ finpulse-ai/
 │       ├── staging/
 │       └── marts/
 ├── docker/
+│   ├── api/
 │   ├── jupyter/
 │   ├── mlflow/
 │   └── postgres/init/
@@ -267,6 +333,8 @@ finpulse-ai/
 ├── models/
 ├── reports/
 ├── src/
+├── tests/api/
+│   └── test_api_integration.py
 ├── docker-compose.yml
 └── README.md
 ```
@@ -304,6 +372,8 @@ Serviços locais:
 | MinIO API | `http://localhost:9000` |
 | MinIO Console | `http://localhost:9001` |
 | PostgreSQL | `localhost:5433` |
+| FastAPI | `http://localhost:8000` |
+| Swagger UI | `http://localhost:8000/docs` |
 
 Na primeira inicialização, o Compose prepara o banco do MLflow, o usuário do dbt e os buckets `raw`, `processed`, `curated`, `reports` e `mlflow`. Os modelos registrados e seus artefatos são armazenados pelo MLflow no bucket `mlflow`; portanto, não é necessário manter um bucket separado chamado `models`.
 
@@ -339,6 +409,21 @@ Em ambientes onde o executável `dbt` é bloqueado, a CLI também pode ser chama
 03_churn_model_registry_validation.ipynb
 ```
 
+### 6. Valide a API
+
+Com os serviços saudáveis, consulte:
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/model-info
+```
+
+Execute os testes de integração:
+
+```bash
+docker compose --profile test run --rm api-tests
+```
+
 ## Reprodutibilidade
 
 - versões Python fixadas em `requirements.txt` por serviço;
@@ -346,7 +431,9 @@ Em ambientes onde o executável `dbt` é bloqueado, a CLI também pode ser chama
 - MLflow, CatBoost, XGBoost e LightGBM versionados;
 - volumes persistentes para PostgreSQL e MinIO;
 - inicialização automática de banco, usuário, schemas e buckets;
-- testes de comunicação entre Jupyter, MLflow e MinIO.
+- healthchecks para PostgreSQL, MinIO, MLflow e FastAPI;
+- testes de comunicação entre Jupyter, MLflow e MinIO;
+- suíte de integração black-box para os endpoints da API.
 
 As credenciais presentes no Compose são exclusivas para desenvolvimento local. Um ambiente produtivo deve utilizar secrets e usuários com privilégios mínimos.
 
@@ -377,7 +464,11 @@ As credenciais presentes no Compose são exclusivas para desenvolvimento local. 
 - [x] Snapshot Parquet no MinIO
 - [x] Execução do scoring registrada no MLflow
 - [x] Validação cruzada entre PostgreSQL, MLflow e MinIO
-- [ ] API com FastAPI
+- [x] API com FastAPI
+- [x] Serving do modelo `champion`
+- [x] Consultas de carteira e clientes pelo PostgreSQL
+- [x] Healthcheck de API, modelo e banco
+- [x] Testes automatizados de integração da API
 - [ ] Dashboard com Streamlit
 - [ ] Explicabilidade com SHAP
 - [ ] Assistente de IA
@@ -386,18 +477,18 @@ As credenciais presentes no Compose são exclusivas para desenvolvimento local. 
 
 ## Próxima etapa
 
-O próximo incremento implementará uma API REST com FastAPI para disponibilizar o modelo e os dados operacionais.
+O próximo incremento implementará um dashboard multipágina com Streamlit consumindo exclusivamente a FastAPI.
 
-A API deverá oferecer:
+As primeiras páginas deverão oferecer:
 
-- verificação de saúde do serviço;
-- informações sobre o modelo `champion`;
-- previsão de churn individual;
-- consulta dos clientes de maior risco;
-- resumo das faixas de risco da carteira;
-- acesso controlado aos resultados do mart de previsões.
+- visão executiva da carteira;
+- distribuição das faixas de risco;
+- lista filtrável e paginada de clientes;
+- visão Customer 360;
+- simulador de previsão individual;
+- saúde dos serviços e governança do modelo.
 
-Essa camada será utilizada pelo dashboard, pela futura explicabilidade com SHAP e pelas automações do projeto.
+Após a consolidação da camada visual, o projeto receberá explicabilidade com SHAP e um assistente de IA que utilizará a API como camada segura de acesso aos dados e previsões.
 
 ## Autor
 

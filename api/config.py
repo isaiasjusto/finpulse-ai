@@ -7,6 +7,7 @@ class Settings:
     mlflow_tracking_uri: str
     model_name: str
     model_alias: str
+    database_url: str
 
     @property
     def model_uri(self) -> str:
@@ -26,6 +27,14 @@ def load_settings() -> Settings:
         model_alias=os.getenv(
             "MODEL_ALIAS",
             "champion",
+        ),
+        database_url=os.getenv(
+            "DATABASE_URL",
+            (
+                "postgresql+psycopg2://"
+                "finpulse_user:finpulse_password"
+                "@postgres:5432/finpulse"
+            ),
         ),
     )
 

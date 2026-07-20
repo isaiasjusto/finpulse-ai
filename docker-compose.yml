@@ -151,7 +151,10 @@ services:
       AWS_DEFAULT_REGION: us-east-1
       MODEL_NAME: finpulse-churn-catboost
       MODEL_ALIAS: champion
+      DATABASE_URL: postgresql+psycopg2://finpulse_user:finpulse_password@postgres:5432/finpulse
     depends_on:
+      postgres:
+        condition: service_healthy
       mlflow:
         condition: service_healthy
       minio:
@@ -169,6 +172,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - finpulse_network
+  api-tests:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile.test
+    environment:
+      API_BASE_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    profiles:
+      - test
     networks:
       - finpulse_network
 volumes:
