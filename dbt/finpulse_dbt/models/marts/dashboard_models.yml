@@ -1,0 +1,137 @@
+version: 2
+
+models:
+  - name: int_churn_dashboard_customer_latest
+    description: "Base unificada com clientes e a previsão de churn mais recente."
+
+    columns:
+      - name: customer_id
+        description: "Identificador único do cliente."
+        data_tests:
+          - not_null
+          - unique
+
+      - name: churn_flag
+        description: "Resultado real observado de churn."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+      - name: churn_probability
+        description: "Probabilidade prevista de churn."
+        data_tests:
+          - not_null
+
+      - name: risk_band
+        description: "Faixa de risco calculada pelo scoring."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Low", "Medium", "High"]
+
+      - name: model_version
+        data_tests:
+          - not_null
+
+      - name: model_alias
+        data_tests:
+          - not_null
+
+      - name: scoring_run_id
+        data_tests:
+          - not_null
+
+      - name: scored_at
+        data_tests:
+          - not_null
+
+
+  - name: mart_churn_dashboard_overview
+    description: "Indicadores consolidados da carteira para a visão geral."
+
+    columns:
+      - name: total_customers
+        data_tests:
+          - not_null
+
+      - name: observed_churn_customers
+        data_tests:
+          - not_null
+
+      - name: observed_churn_rate
+        data_tests:
+          - not_null
+
+      - name: high_risk_customers
+        data_tests:
+          - not_null
+
+      - name: average_churn_probability
+        data_tests:
+          - not_null
+
+      - name: model_version
+        data_tests:
+          - not_null
+
+      - name: model_alias
+        data_tests:
+          - not_null
+
+      - name: scoring_run_id
+        data_tests:
+          - not_null
+
+      - name: scored_at
+        data_tests:
+          - not_null
+
+
+  - name: mart_churn_risk_distribution
+    description: "Distribuição da carteira entre as faixas de risco."
+
+    columns:
+      - name: risk_order
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+                quote: false
+
+      - name: risk_band
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: ["Low", "Medium", "High"]
+
+      - name: customers
+        data_tests:
+          - not_null
+
+      - name: observed_churn_customers
+        data_tests:
+          - not_null
+
+      - name: model_version
+        data_tests:
+          - not_null
+
+      - name: model_alias
+        data_tests:
+          - not_null
+
+      - name: scoring_run_id
+        data_tests:
+          - not_null
+
+      - name: scored_at
+        data_tests:
+          - not_null

@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: scoring
+    schema: marts
+    description: "Tabelas produzidas pelo processo de scoring do modelo de churn."
+
+    tables:
+      - name: mart_customer_churn_predictions
+        description: "Previsões de churn geradas pelo modelo registrado no MLflow."
