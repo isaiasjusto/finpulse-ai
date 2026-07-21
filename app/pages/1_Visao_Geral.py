@@ -22,6 +22,17 @@ st.set_page_config(
     layout="wide",
 )
 
+def load_css() -> None:
+    css_path = APP_DIR / "styles" / "theme.css"
+    css_content = css_path.read_text(encoding="utf-8")
+
+    st.markdown(
+        f"<style>{css_content}</style>",
+        unsafe_allow_html=True,
+    )
+
+
+load_css()
 
 def format_integer(value) -> str:
     return f"{int(value):,}".replace(",", ".")
@@ -43,137 +54,93 @@ def format_brl_compact(value) -> str:
 
     return formatted.replace(".", ",")
 
+RISK_BAND_CONFIG = {
+    "Low": {
+        "label": "Baixo risco",
+        "class_name": "risk-low",
+    },
+    "Medium": {
+        "label": "Médio risco",
+        "class_name": "risk-medium",
+    },
+    "High": {
+        "label": "Alto risco",
+        "class_name": "risk-high",
+    },
+}
 
-st.markdown(
-    """
-    <style>
-        .stApp {
-            background:
-                radial-gradient(
-                    circle at 82% 5%,
-                    rgba(20, 184, 166, 0.16),
-                    transparent 28%
-                ),
-                linear-gradient(
-                    145deg,
-                    #061426 0%,
-                    #081d34 52%,
-                    #052d35 100%
-                );
-        }
 
-        [data-testid="stAppViewContainer"] > .main {
-            background: transparent;
-        }
+def render_risk_distribution(risk_df) -> None:
+    risk_cards = []
 
-        .block-container {
-            max-width: 1450px;
-            padding-top: 2rem;
-            padding-bottom: 4rem;
-        }
+    sorted_df = risk_df.sort_values("risk_order")
 
-        .finpulse-hero {
-            position: relative;
-            overflow: hidden;
-            padding: 2.2rem 2.4rem;
-            margin-bottom: 1.4rem;
-            border: 1px solid rgba(45, 212, 191, 0.28);
-            border-radius: 26px;
-            background:
-                radial-gradient(
-                    circle at 82% 30%,
-                    rgba(45, 212, 191, 0.34),
-                    transparent 28%
-                ),
-                linear-gradient(
-                    120deg,
-                    rgba(8, 45, 85, 0.96),
-                    rgba(9, 80, 98, 0.88)
-                );
-            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
-        }
+    for _, row in sorted_df.iterrows():
+        risk_band = str(row["risk_band"])
+        config = RISK_BAND_CONFIG[risk_band]
 
-        .finpulse-eyebrow {
-            color: #5eead4;
-            font-size: 0.78rem;
-            font-weight: 800;
-            letter-spacing: 0.16rem;
-            text-transform: uppercase;
-        }
+        customers = format_integer(row["customers"])
+        customer_share = format_percentage(row["customer_share"])
+        transaction_amount = format_brl_compact(
+            row["total_transaction_amount"]
+        )
+        average_probability = format_percentage(
+            row["average_churn_probability"]
+        )
 
-        .finpulse-title {
-            max-width: 780px;
-            margin: 0.55rem 0 0.7rem;
-            color: #f8fafc;
-            font-size: clamp(2rem, 4vw, 3.5rem);
-            font-weight: 800;
-            line-height: 1.04;
-        }
+        bar_width = max(float(row["customer_share"]) * 100, 1.5)
 
-        .finpulse-description {
-            max-width: 760px;
-            margin: 0;
-            color: #cbd5e1;
-            font-size: 1rem;
-            line-height: 1.65;
-        }
+        card_html = dedent(
+            f"""
+            <article class="risk-card {config["class_name"]}">
+                <div class="risk-card-header">
+                    <div>
+                        <div class="risk-label">
+                            <span class="risk-dot"></span>
+                            {config["label"]}
+                        </div>
+                        <div class="risk-customer-count">
+                            {customers} clientes
+                        </div>
+                    </div>
 
-        .model-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 1.25rem;
-            padding: 0.55rem 0.85rem;
-            border: 1px solid rgba(94, 234, 212, 0.35);
-            border-radius: 999px;
-            color: #ccfbf1;
-            background: rgba(6, 78, 84, 0.55);
-            font-size: 0.8rem;
-            font-weight: 700;
-        }
+                    <div class="risk-share">
+                        {customer_share}
+                    </div>
+                </div>
 
-        div[data-testid="stMetric"] {
-            min-height: 155px;
-            padding: 1.25rem 1.35rem;
-            border: 1px solid rgba(96, 165, 250, 0.20);
-            border-radius: 20px;
-            background: linear-gradient(
-                145deg,
-                rgba(15, 38, 67, 0.92),
-                rgba(8, 31, 51, 0.92)
-            );
-            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.18);
-        }
+                <div class="risk-progress-track">
+                    <div
+                        class="risk-progress-fill"
+                        style="width: {bar_width:.2f}%"
+                    ></div>
+                </div>
 
-        div[data-testid="stMetricLabel"] {
-            color: #94a3b8;
-        }
+                <div class="risk-card-details">
+                    <div>
+                        <span>Valor transacionado</span>
+                        <strong>{transaction_amount}</strong>
+                    </div>
 
-        div[data-testid="stMetricValue"] {
-            color: #f8fafc;
-            font-size: 2rem;
-        }
+                    <div>
+                        <span>Probabilidade média</span>
+                        <strong>{average_probability}</strong>
+                    </div>
+                </div>
+            </article>
+            """
+        )
 
-        div[data-testid="stMetricDelta"] {
-            color: #5eead4;
-        }
+        risk_cards.append(
+            "".join(line.strip() for line in card_html.splitlines())
+        )
 
-        .section-title {
-            margin-top: 2rem;
-            color: #f8fafc;
-            font-size: 1.35rem;
-            font-weight: 750;
-        }
-
-        .section-subtitle {
-            margin-top: -0.55rem;
-            margin-bottom: 1rem;
-            color: #94a3b8;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+    st.markdown(
+        '<div class="risk-distribution-grid">'
+        + "".join(risk_cards)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 try:
@@ -272,16 +239,4 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.dataframe(
-    risk_distribution_df[
-        [
-            "risk_band",
-            "customers",
-            "customer_share",
-            "total_transaction_amount",
-            "average_churn_probability",
-        ]
-    ],
-    width="stretch",
-    hide_index=True,
-)
+render_risk_distribution(risk_distribution_df)

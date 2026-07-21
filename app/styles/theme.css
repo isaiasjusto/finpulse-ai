@@ -1,8 +1,418 @@
+/* =========================================================
+   FinPulse AI — Tema global
+
+   Este arquivo centraliza toda a identidade visual do sistema:
+   - fundo da aplicação;
+   - espaçamento da página;
+   - banner principal;
+   - identificação do modelo;
+   - cards de indicadores;
+   - títulos das seções;
+   - distribuição compacta da carteira por risco.
+   ========================================================= */
+
+
+/* =========================================================
+   1. APLICAÇÃO
+
+   Define o fundo geral do dashboard com tons de azul e verde.
+   O brilho no canto superior direito ajuda a criar profundidade.
+   ========================================================= */
+
+.stApp {
+    background:
+        radial-gradient(
+            circle at 82% 5%,
+            rgba(20, 184, 166, 0.16),
+            transparent 28%
+        ),
+        linear-gradient(
+            145deg,
+            #061426 0%,
+            #081d34 52%,
+            #052d35 100%
+        );
+}
+
+[data-testid="stAppViewContainer"] > .main {
+    background: transparent;
+}
+
+/*
+   Limita a largura do conteúdo para que o dashboard não fique
+   excessivamente esticado em monitores grandes.
+*/
+.block-container {
+    max-width: 1450px;
+    padding-top: 2rem;
+    padding-bottom: 4rem;
+}
+
+
+/* =========================================================
+   2. HERO
+
+   Banner principal da Visão Geral.
+   Apresenta a proposta do FinPulse AI e o modelo em produção.
+   ========================================================= */
+
+.finpulse-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 2.2rem 2.4rem;
+    margin-bottom: 1.4rem;
+    border: 1px solid rgba(45, 212, 191, 0.28);
+    border-radius: 26px;
+    background:
+        radial-gradient(
+            circle at 82% 30%,
+            rgba(45, 212, 191, 0.34),
+            transparent 28%
+        ),
+        linear-gradient(
+            120deg,
+            rgba(8, 45, 85, 0.96),
+            rgba(9, 80, 98, 0.88)
+        );
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+/* Pequeno texto acima do título principal. */
+.finpulse-eyebrow {
+    color: #5eead4;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.16rem;
+    text-transform: uppercase;
+}
+
+/* Título principal do dashboard. */
+.finpulse-title {
+    max-width: 780px;
+    margin: 0.55rem 0 0.7rem;
+    color: #f8fafc;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.04;
+}
+
+/* Texto explicativo apresentado abaixo do título. */
+.finpulse-description {
+    max-width: 760px;
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+
+/* =========================================================
+   3. MODELO EM PRODUÇÃO
+
+   Badge que mostra o alias e a versão do modelo carregado.
+   O ponto luminoso indica que o modelo está disponível.
+   ========================================================= */
+
+.model-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    border-radius: 999px;
+    color: #ccfbf1;
+    background: rgba(6, 78, 84, 0.55);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
 .model-status-dot {
+    display: inline-block;
     width: 8px;
     height: 8px;
-    display: inline-block;
+    flex-shrink: 0;
     border-radius: 50%;
     background: #5eead4;
     box-shadow: 0 0 10px rgba(94, 234, 212, 0.8);
+}
+
+
+/* =========================================================
+   4. CARDS DE KPI
+
+   Personaliza os componentes st.metric utilizados para mostrar:
+   - clientes analisados;
+   - churn observado;
+   - clientes em alto risco;
+   - valor transacionado em alto risco.
+   ========================================================= */
+
+div[data-testid="stMetric"] {
+    min-height: 155px;
+    padding: 1.25rem 1.35rem;
+    border: 1px solid rgba(96, 165, 250, 0.20);
+    border-radius: 20px;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(15, 38, 67, 0.92),
+            rgba(8, 31, 51, 0.92)
+        );
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.18);
+}
+
+/* Nome do indicador. */
+div[data-testid="stMetricLabel"] {
+    color: #94a3b8;
+}
+
+/* Valor principal do indicador. */
+div[data-testid="stMetricValue"] {
+    color: #f8fafc;
+    font-size: 2rem;
+}
+
+/* Informação complementar abaixo do valor. */
+div[data-testid="stMetricDelta"] {
+    color: #5eead4;
+}
+
+
+/* =========================================================
+   5. TÍTULOS DAS SEÇÕES
+
+   Padroniza os títulos e textos explicativos das áreas
+   apresentadas abaixo dos KPIs.
+   ========================================================= */
+
+.section-title {
+    margin-top: 2rem;
+    color: #f8fafc;
+    font-size: 1.35rem;
+    font-weight: 750;
+}
+
+.section-subtitle {
+    margin-top: -0.55rem;
+    margin-bottom: 1rem;
+    color: #94a3b8;
+}
+
+
+/* =========================================================
+   6. DISTRIBUIÇÃO DA CARTEIRA POR RISCO
+
+   Exibe as três faixas verticalmente:
+   - baixo risco;
+   - médio risco;
+   - alto risco.
+
+   Os cards são compactos para funcionar como um painel
+   executivo e liberar espaço para Prioridades de ação.
+   ========================================================= */
+
+.risk-distribution-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 0.4rem;
+}
+
+
+/* Card individual de cada faixa de risco. */
+.risk-card {
+    --risk-color: #5eead4;
+
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0.7rem 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 11px;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(15, 38, 67, 0.94),
+            rgba(7, 27, 47, 0.94)
+        );
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+    box-sizing: border-box;
+}
+
+/* Linha colorida posicionada no lado esquerdo do card. */
+.risk-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: var(--risk-color);
+}
+
+
+/* =========================================================
+   7. CORES DAS FAIXAS DE RISCO
+   ========================================================= */
+
+/* Verde para clientes com baixo risco. */
+.risk-low {
+    --risk-color: #34d399;
+}
+
+/* Amarelo para clientes com risco intermediário. */
+.risk-medium {
+    --risk-color: #fbbf24;
+}
+
+/* Vermelho para clientes com alto risco. */
+.risk-high {
+    --risk-color: #fb7185;
+}
+
+
+/* =========================================================
+   8. CABEÇALHO DOS CARDS DE RISCO
+
+   Mantém o nome e a quantidade à esquerda, enquanto o
+   percentual da carteira fica destacado à direita.
+   ========================================================= */
+
+.risk-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.risk-label {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #e2e8f0;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+/* Pequeno indicador luminoso ao lado do nome da faixa. */
+.risk-dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--risk-color);
+    box-shadow: 0 0 9px var(--risk-color);
+}
+
+/* Quantidade de clientes existente na faixa. */
+.risk-customer-count {
+    margin-top: 0.2rem;
+    color: #f8fafc;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+/* Participação percentual da faixa na carteira. */
+.risk-share {
+    color: var(--risk-color);
+    font-size: 0.95rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   9. BARRA DE PROPORÇÃO
+
+   Mostra visualmente quanto cada faixa representa da carteira.
+   A largura da parte colorida é calculada pelo Python.
+   ========================================================= */
+
+.risk-progress-track {
+    height: 5px;
+    margin: 0.5rem 0;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.14);
+}
+
+.risk-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--risk-color);
+    box-shadow: 0 0 10px var(--risk-color);
+}
+
+
+/* =========================================================
+   10. DETALHES FINANCEIROS
+
+   Apresenta:
+   - valor transacionado;
+   - probabilidade média de churn.
+   ========================================================= */
+
+.risk-card-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.risk-card-details div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.12rem;
+}
+
+.risk-card-details span {
+    color: #94a3b8;
+    font-size: 0.64rem;
+}
+
+.risk-card-details strong {
+    overflow: hidden;
+    color: #e2e8f0;
+    font-size: 0.76rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   11. RESPONSIVIDADE
+
+   Ajusta a página para tablets e celulares.
+   ========================================================= */
+
+@media (max-width: 900px) {
+    .block-container {
+        padding-top: 1.25rem;
+    }
+
+    .finpulse-hero {
+        padding: 1.6rem;
+        border-radius: 20px;
+    }
+
+    .risk-distribution-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .finpulse-title {
+        font-size: 2rem;
+    }
+
+    .risk-card {
+        padding: 0.75rem 0.85rem;
+    }
+
+    .risk-card-details {
+        grid-template-columns: 1fr;
+    }
 }
