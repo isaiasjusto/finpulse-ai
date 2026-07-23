@@ -25,14 +25,15 @@ from api.customer_repository import get_customer_by_id
 from api.model_service import ModelService
 from api.portfolio_repository import get_portfolio_summary
 from api.schemas import (
+    CustomerListResponse,
     CustomerPredictionResponse,
     CustomerResponse,
+    LatestScoringResponse,
     PortfolioSummaryResponse,
     PredictionRequest,
     PredictionResponse,
-    StoredPredictionResponse,
-    CustomerListResponse,
     RiskBand,
+    StoredPredictionResponse,
 )
 
 
@@ -164,6 +165,67 @@ def portfolio_summary() -> PortfolioSummaryResponse:
         ) from exc
 
     return PortfolioSummaryResponse(**summary)
+
+@app.get(
+    "/scoring/latest",
+    response_model=LatestScoringResponse,
+    tags=["scoring"],
+)
+def latest_scoring(
+    request: Request,
+) -> LatestScoringResponse:
+    model_service: ModelService = request.app.state.model_service
+
+    if not model_service.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Champion model is not available.",
+        )
+
+    try:
+        portfolio_summary_data = get_portfolio_summary()
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "Latest scoring summary query failed."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Scoring database is unavailable.",
+        ) from exc
+
+    model_info_data = model_service.get_info()
+    metrics_data = model_service.get_metrics()
+
+    return LatestScoringResponse(
+        status="available",
+        model={
+            "name": str(model_info_data["name"]),
+            "alias": str(model_info_data["alias"]),
+            "version": int(model_info_data["version"]),
+            "run_id": str(model_info_data["run_id"]),
+            "status": str(model_info_data["status"]),
+        },
+        scoring={
+            "executed_at": portfolio_summary_data[
+                "latest_scoring_at"
+            ],
+            "population_scored": int(
+                portfolio_summary_data["total_customers"]
+            ),
+        },
+        metrics={
+            "roc_auc": metrics_data["roc_auc"],
+            "balanced_accuracy": metrics_data[
+                "balanced_accuracy"
+            ],
+            "f1": metrics_data["f1"],
+            "precision": metrics_data["precision"],
+            "recall": metrics_data["recall"],
+            "ks": metrics_data["ks"],
+            "psi": metrics_data["psi"],
+        },
+    )
 
 @app.get(
     "/customers",

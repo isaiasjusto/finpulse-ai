@@ -13,6 +13,7 @@ class ModelService:
     def __init__(self) -> None:
         self._model: PyFuncModel | None = None
         self._model_version: Any | None = None
+        self._run_metrics: dict[str, float] = {}
 
     @property
     def is_loaded(self) -> bool:
@@ -30,10 +31,16 @@ class ModelService:
             alias=settings.model_alias,
         )
 
+        run = client.get_run(model_version.run_id)
+
         model = mlflow.pyfunc.load_model(settings.model_uri)
 
         self._model_version = model_version
         self._model = model
+        self._run_metrics = {
+            str(metric_name): float(metric_value)
+            for metric_name, metric_value in run.data.metrics.items()
+        }
 
     def predict(self, model_input: pd.DataFrame) -> int:
         if self._model is None:
@@ -48,7 +55,19 @@ class ModelService:
             )
 
         return int(prediction_values[0])
-
+    
+    def get_metrics(self) -> dict[str, float | None]:
+        return {
+            "roc_auc": self._run_metrics.get("test_roc_auc"),
+            "balanced_accuracy": self._run_metrics.get(
+                "test_balanced_accuracy"
+            ),
+            "f1": self._run_metrics.get("test_f1"),
+            "precision": self._run_metrics.get("test_precision"),
+            "recall": self._run_metrics.get("test_recall"),
+            "ks": self._run_metrics.get("ks"),
+            "psi": self._run_metrics.get("psi"),
+        }
     def get_info(self) -> dict[str, object]:
         if self._model_version is None:
             raise RuntimeError("Champion model is not loaded.")

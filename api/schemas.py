@@ -71,6 +71,34 @@ class PortfolioSummaryResponse(BaseModel):
     maximum_model_version: int
     model_alias: str
     latest_scoring_at: datetime
+class LatestScoringModelResponse(BaseModel):
+    name: str
+    alias: str
+    version: int
+    run_id: str
+    status: str
+
+
+class LatestScoringExecutionResponse(BaseModel):
+    executed_at: datetime
+    population_scored: int
+
+
+class LatestScoringMetricsResponse(BaseModel):
+    roc_auc: float | None = None
+    balanced_accuracy: float | None = None
+    f1: float | None = None
+    precision: float | None = None
+    recall: float | None = None
+    ks: float | None = None
+    psi: float | None = None
+
+
+class LatestScoringResponse(BaseModel):
+    status: str
+    model: LatestScoringModelResponse
+    scoring: LatestScoringExecutionResponse
+    metrics: LatestScoringMetricsResponse
 
 class RiskBand(str, Enum):
     low = "Low"

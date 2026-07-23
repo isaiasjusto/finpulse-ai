@@ -70,6 +70,31 @@ def test_portfolio_summary_is_consistent(api_client):
     assert data["maximum_model_version"] == 3
     assert data["model_alias"] == "champion"
 
+def test_latest_scoring_returns_operational_metadata(api_client):
+    response = api_client.get("/scoring/latest")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "available"
+
+    assert data["model"]["name"] == "finpulse-churn-catboost"
+    assert data["model"]["alias"] == "champion"
+    assert data["model"]["version"] == 3
+    assert data["model"]["status"] == "READY"
+    assert data["model"]["run_id"]
+
+    assert data["scoring"]["population_scored"] == 10127
+    assert data["scoring"]["executed_at"]
+
+    assert data["metrics"]["roc_auc"] == pytest.approx(
+        0.9934,
+        abs=0.0001,
+    )
+
+    assert data["metrics"]["ks"] is None
+    assert data["metrics"]["psi"] is None
 
 def test_known_customer_returns_profile_and_prediction(api_client):
     response = api_client.get(
