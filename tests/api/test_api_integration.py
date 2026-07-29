@@ -92,7 +92,25 @@ def test_latest_scoring_returns_operational_metadata(api_client):
         0.9934,
         abs=0.0001,
     )
+    assert data["metrics"]["balanced_accuracy"] == pytest.approx(
+    0.9417,
+    abs=0.0001,
+)
 
+    assert data["metrics"]["f1"] == pytest.approx(
+        0.9206,
+        abs=0.0001,
+    )
+
+    assert data["metrics"]["precision"] == pytest.approx(
+        0.9508,
+        abs=0.0001,
+    )
+
+    assert data["metrics"]["recall"] == pytest.approx(
+        0.8923,
+        abs=0.0001,
+    )
     assert data["metrics"]["ks"] is None
     assert data["metrics"]["psi"] is None
 

@@ -315,15 +315,6 @@ def render_latest_scoring(
         decimal_places=3,
     )
 
-    ks = format_decimal(
-        metrics.get("ks"),
-        decimal_places=3,
-    )
-
-    psi = format_decimal(
-        metrics.get("psi"),
-        decimal_places=3,
-    )
     balanced_accuracy = format_decimal(
     metrics.get("balanced_accuracy"),
     decimal_places=3,
@@ -412,21 +403,7 @@ def render_latest_scoring(
         f'<strong>{recall}</strong>'
         '<small>Teste</small>'
         '</div>'
-
-        '</div>'
-
-        '<div class="scoring-metric-card scoring-metric-pending">'
-        '<span>KS</span>'
-        f'<strong>{ks}</strong>'
-        '<small>Não calculado</small>'
-        '</div>'
-
-        '<div class="scoring-metric-card scoring-metric-pending">'
-        '<span>PSI</span>'
-        f'<strong>{psi}</strong>'
-        '<small>Não calculado</small>'
-        '</div>'
-
+        
         '</div>'
 
         '<div class="scoring-run-footer">'
