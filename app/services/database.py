@@ -44,5 +44,18 @@ def load_risk_distribution() -> pd.DataFrame:
         order by risk_order
         """
     )
+    return pd.read_sql_query(query, get_database_engine())
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_retention_priority() -> pd.DataFrame:
+    query = text(
+        """
+        select *
+        from marts.mart_churn_retention_priority
+        order by risk_order, value_order
+        """
+    )
 
     return pd.read_sql_query(query, get_database_engine())
+
+    

@@ -14,6 +14,7 @@ if str(APP_DIR) not in sys.path:
 from services.database import (
     load_dashboard_overview,
     load_risk_distribution,
+    load_retention_priority,
 )
 from services.api_client import load_latest_scoring
 
@@ -423,6 +424,7 @@ def render_latest_scoring(
 try:
     overview_df = load_dashboard_overview()
     risk_distribution_df = load_risk_distribution()
+    retention_priority_df = load_retention_priority()
 
 except Exception:
     st.error(
