@@ -135,3 +135,72 @@ models:
       - name: scored_at
         data_tests:
           - not_null
+
+
+  - name: mart_churn_retention_priority
+    description: "Segmentação da carteira por risco de churn e valor transacionado para priorização de retenção."
+
+    columns:
+      - name: risk_band
+        description: "Faixa de risco de churn."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Low", "Medium", "High"]
+
+      - name: risk_order
+        description: "Ordem usada para exibir as faixas de risco."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+                quote: false
+
+      - name: value_band
+        description: "Classificação do cliente entre baixo e alto valor transacionado."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Low", "High"]
+
+      - name: value_order
+        description: "Ordem usada para exibir as faixas de valor."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+                quote: false
+
+      - name: customers
+        description: "Quantidade de clientes no segmento."
+        data_tests:
+          - not_null
+
+      - name: customer_share
+        description: "Participação do segmento na quantidade total de clientes."
+        data_tests:
+          - not_null
+
+      - name: total_transaction_amount
+        description: "Valor total transacionado pelos clientes do segmento."
+        data_tests:
+          - not_null
+
+      - name: average_transaction_amount
+        description: "Valor médio transacionado pelos clientes do segmento."
+        data_tests:
+          - not_null
+
+      - name: transaction_amount_share
+        description: "Participação do segmento no valor total transacionado."
+        data_tests:
+          - not_null
+
+      - name: average_churn_probability
+        description: "Probabilidade média de churn no segmento."
+        data_tests:
+          - not_null

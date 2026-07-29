@@ -154,7 +154,153 @@ def render_risk_distribution(risk_df) -> None:
         + "</div>",
         unsafe_allow_html=True,
     )
+def render_retention_priority_matrix(retention_df) -> None:
+    segment_config = {
+        ("High", "High"): {
+            "title": "Retenção prioritária",
+            "action": "Contato imediato e oferta personalizada",
+        },
+        ("High", "Low"): {
+            "title": "Retenção direcionada",
+            "action": "Campanha de recuperação com baixo custo",
+        },
+        ("Medium", "High"): {
+            "title": "Fidelizar",
+            "action": "Benefícios preventivos e acompanhamento",
+        },
+        ("Medium", "Low"): {
+            "title": "Acompanhar",
+            "action": "Monitorar evolução do risco",
+        },
+        ("Low", "High"): {
+            "title": "Desenvolver relacionamento",
+            "action": "Estimular recorrência e novas ofertas",
+        },
+        ("Low", "Low"): {
+            "title": "Manter relacionamento",
+            "action": "Comunicação e fidelização contínuas",
+        },
+    }
 
+    segment_rows = {
+        (str(row["risk_band"]), str(row["value_band"])): row
+        for _, row in retention_df.iterrows()
+    }
+
+    matrix_cells = []
+
+    for risk_band in ["High", "Medium", "Low"]:
+        for value_band in ["Low", "High"]:
+            segment_key = (risk_band, value_band)
+            config = segment_config[segment_key]
+            row = segment_rows.get(segment_key)
+
+            if row is None:
+                customers = "0"
+                share_value = 0.0
+                customer_share = "0,00%"
+                transaction_amount = "R$ 0,00"
+                churn_probability = "0,00%"
+            else:
+                customers = format_integer(row["customers"])
+                share_value = float(row["customer_share"])
+
+                customer_share = format_percentage(
+                    share_value
+                )
+                transaction_amount = format_brl_compact(
+                    row["total_transaction_amount"]
+                )
+                churn_probability = format_percentage(
+                    row["average_churn_probability"]
+                )
+
+            # Mantém as bolhas menores legíveis e impede
+            # que as maiores ultrapassem o quadrante.
+            bubble_size = 56 + min(
+                share_value ** 0.5 * 84,
+                58,
+            )
+
+            empty_class = (
+                " retention-bubble-empty"
+                if row is None
+                else ""
+            )
+
+            cell_html = (
+                f'<article class="retention-matrix-cell '
+                f'retention-bubble-cell '
+                f'retention-risk-{risk_band.lower()}">'
+
+                '<div class="retention-cell-header">'
+                f'<strong>{config["title"]}</strong>'
+                f'<span>{customers} clientes</span>'
+                '</div>'
+
+                '<div class="retention-bubble-stage">'
+                f'<div class="retention-priority-bubble'
+                f'{empty_class}" '
+                f'style="--bubble-size: {bubble_size:.0f}px;">'
+                f'<strong>{customer_share}</strong>'
+                '<span>da carteira</span>'
+                '</div>'
+                '</div>'
+
+                '<div class="retention-bubble-metrics">'
+                '<div>'
+                '<span>Valor transacionado</span>'
+                f'<strong>{transaction_amount}</strong>'
+                '</div>'
+                '<div>'
+                '<span>Churn médio</span>'
+                f'<strong>{churn_probability}</strong>'
+                '</div>'
+                '</div>'
+
+                f'<div class="retention-cell-action">'
+                f'{config["action"]}'
+                '</div>'
+
+                '</article>'
+            )
+
+            matrix_cells.append(cell_html)
+
+    matrix_html = (
+        '<div class="retention-matrix">'
+        '<div class="retention-matrix-corner">'
+        '<span>Risco</span>'
+        '<span>Valor</span>'
+        '</div>'
+        '<div class="retention-value-header">Baixo valor</div>'
+        '<div class="retention-value-header">Alto valor</div>'
+
+        '<div class="retention-risk-header retention-risk-high">'
+        'Alto risco'
+        '</div>'
+        f'{matrix_cells[0]}'
+        f'{matrix_cells[1]}'
+
+        '<div class="retention-risk-header retention-risk-medium">'
+        'Médio risco'
+        '</div>'
+        f'{matrix_cells[2]}'
+        f'{matrix_cells[3]}'
+
+        '<div class="retention-risk-header retention-risk-low">'
+        'Baixo risco'
+        '</div>'
+        f'{matrix_cells[4]}'
+        f'{matrix_cells[5]}'
+        '</div>'
+    )
+
+    st.markdown(
+        matrix_html,
+        unsafe_allow_html=True,
+    )
+    
 def render_action_priorities(risk_df) -> None:
     priority_rows = []
 
@@ -536,19 +682,45 @@ def format_decimal(value, decimal_places: int = 3) -> str:
     formatted = f"{float(value):.{decimal_places}f}"
 
     return formatted.replace(".", ",")
-st.markdown(
-    """
-    <div class="section-title">
-        Distribuição da carteira por risco
-    </div>
-    <div class="section-subtitle">
-        Quantidade de clientes e exposição financeira em cada faixa.
-    </div>
-    """,
-    unsafe_allow_html=True,
+retention_column, distribution_column = st.columns(
+    [1.9, 1.0],
+    gap="large",
 )
 
-render_risk_distribution(risk_distribution_df)
+with retention_column:
+    st.markdown(
+        """
+        <div class="section-title">
+            Matriz de prioridade de retenção
+        </div>
+        <div class="section-subtitle">
+            Cruzamento entre risco de churn e valor transacionado.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    render_retention_priority_matrix(
+        retention_priority_df
+    )
+
+with distribution_column:
+    st.markdown(
+        """
+        <div class="section-title">
+            Distribuição por risco
+        </div>
+        <div class="section-subtitle">
+            Tamanho e exposição financeira da carteira.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    render_risk_distribution(
+        risk_distribution_df
+    )
+
 
 priority_column, scoring_column = st.columns(
     [2.1, 1.0],
