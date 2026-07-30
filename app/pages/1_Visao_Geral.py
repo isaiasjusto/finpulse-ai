@@ -61,6 +61,7 @@ RISK_BAND_CONFIG = {
         "label": "Baixo risco",
         "segment_label": "Clientes de baixo risco",
         "class_name": "risk-low",
+        "color": "#34d399",
         "priority_label": "Baixa",
         "priority_class": "priority-low",
         "action": "Manter relacionamento e ações de fidelização",
@@ -69,6 +70,7 @@ RISK_BAND_CONFIG = {
         "label": "Médio risco",
         "segment_label": "Clientes de médio risco",
         "class_name": "risk-medium",
+        "color": "#fbbf24",
         "priority_label": "Alta",
         "priority_class": "priority-high",
         "action": "Campanha preventiva e acompanhamento",
@@ -77,6 +79,7 @@ RISK_BAND_CONFIG = {
         "label": "Alto risco",
         "segment_label": "Clientes de alto risco",
         "class_name": "risk-high",
+        "color": "#fb7185",
         "priority_label": "Crítica",
         "priority_class": "priority-critical",
         "action": "Contato imediato e oferta de retenção",
@@ -91,56 +94,93 @@ def render_risk_distribution(risk_df) -> None:
     for _, row in sorted_df.iterrows():
         risk_band = str(row["risk_band"])
         config = RISK_BAND_CONFIG[risk_band]
+        risk_color = config["color"]
 
         customers = format_integer(row["customers"])
         customer_share = format_percentage(row["customer_share"])
+
         transaction_amount = format_brl_compact(
             row["total_transaction_amount"]
         )
+
         average_probability = format_percentage(
             row["average_churn_probability"]
         )
 
-        bar_width = max(float(row["customer_share"]) * 100, 1.5)
+        bar_width = min(
+            max(float(row["customer_share"]) * 100, 1.5),
+            100,
+        )
 
         card_html = dedent(
             f"""
-            <article class="risk-card {config["class_name"]}">
+            <div
+                class="risk-card {config["class_name"]}"
+                style="--risk-color: {risk_color};"
+            >
                 <div class="risk-card-header">
                     <div>
                         <div class="risk-label">
-                            <span class="risk-dot"></span>
+                            <span
+                                class="risk-dot"
+                                style="background: {risk_color};"
+                            ></span>
                             {config["label"]}
                         </div>
+
                         <div class="risk-customer-count">
                             {customers} clientes
                         </div>
                     </div>
 
-                    <div class="risk-share">
+                    <div
+                        class="risk-share"
+                        style="color: {risk_color};"
+                    >
                         {customer_share}
                     </div>
                 </div>
 
-                <div class="risk-progress-track">
+                <div
+                    class="risk-progress-track"
+                    style="
+                        width: 100%;
+                        height: 6px;
+                        overflow: hidden;
+                        border-radius: 999px;
+                        background: rgba(148, 163, 184, 0.18);
+                    "
+                >
                     <div
                         class="risk-progress-fill"
-                        style="width: {bar_width:.2f}%"
+                        style="
+                            display: block;
+                            width: {bar_width:.2f}% !important;
+                            height: 100% !important;
+                            min-height: 6px;
+                            border-radius: 999px;
+                            background-color: {risk_color} !important;
+                            box-shadow: 0 0 10px {risk_color};
+                        "
                     ></div>
                 </div>
 
                 <div class="risk-card-details">
                     <div>
                         <span>Valor transacionado</span>
-                        <strong>{transaction_amount}</strong>
+                        <strong style="color: {risk_color} !important;">
+                            {transaction_amount}
+                        </strong>
                     </div>
 
                     <div>
                         <span>Probabilidade média</span>
-                        <strong>{average_probability}</strong>
+                        <strong style="color: {risk_color} !important;">
+                            {average_probability}
+                        </strong>
                     </div>
                 </div>
-            </article>
+            </div>
             """
         )
 
@@ -154,6 +194,7 @@ def render_risk_distribution(risk_df) -> None:
         + "</div>",
         unsafe_allow_html=True,
     )
+    
 def render_retention_priority_matrix(retention_df) -> None:
     segment_config = {
         ("High", "High"): {
