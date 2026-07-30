@@ -185,7 +185,11 @@ def render_risk_distribution(risk_df) -> None:
         )
 
         risk_cards.append(
-            "".join(line.strip() for line in card_html.splitlines())
+            " ".join(
+                line.strip()
+                for line in card_html.splitlines()
+                if line.strip()
+            )
         )
 
     st.markdown(
