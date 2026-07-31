@@ -25,16 +25,17 @@ from api.customer_repository import (
 from api.model_service import ModelService
 from api.portfolio_repository import get_portfolio_summary
 from api.schemas import (
+    ConfusionMatrixResponse,
     CustomerListResponse,
     CustomerPredictionResponse,
     CustomerResponse,
+    GlobalExplainabilityResponse,
     LatestScoringResponse,
     PortfolioSummaryResponse,
     PredictionRequest,
     PredictionResponse,
     RiskBand,
     StoredPredictionResponse,
-    GlobalExplainabilityResponse,
 )
 
 
@@ -198,6 +199,36 @@ def global_model_explainability(
         ) from exc
 
     return GlobalExplainabilityResponse(**result)
+
+@app.get(
+    "/model-evaluation/confusion-matrix",
+    response_model=ConfusionMatrixResponse,
+    tags=["model-evaluation"],
+)
+def model_confusion_matrix(
+    request: Request,
+) -> ConfusionMatrixResponse:
+    model_service: ModelService = request.app.state.model_service
+
+    if not model_service.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Champion model is not available.",
+        )
+
+    try:
+        result = model_service.get_confusion_matrix()
+    except RuntimeError as exc:
+        logger.exception(
+            "Confusion matrix reconstruction failed."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Confusion matrix reconstruction failed.",
+        ) from exc
+
+    return ConfusionMatrixResponse(**result)
 
 @app.get(
     "/portfolio/summary",

@@ -41,7 +41,60 @@ def load_latest_scoring() -> dict[str, Any]:
         raise RuntimeError(
             "A API retornou uma resposta inválida."
         ) from exc
-        
+
+def load_confusion_matrix() -> dict[str, int]:
+    request = Request(
+        url=(
+            f"{API_BASE_URL}"
+            "/model-evaluation/confusion-matrix"
+        ),
+        headers={
+            "Accept": "application/json",
+        },
+        method="GET",
+    )
+
+    try:
+        with urlopen(request, timeout=10) as response:
+            response_body = response.read().decode("utf-8")
+
+    except HTTPError as exc:
+        raise RuntimeError(
+            "A API respondeu com erro ao consultar "
+            "a matriz de confusão."
+        ) from exc
+
+    except URLError as exc:
+        raise RuntimeError(
+            "Não foi possível conectar à API do FinPulse."
+        ) from exc
+
+    try:
+        result = json.loads(response_body)
+
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "A API retornou uma matriz de confusão inválida."
+        ) from exc
+
+    required_fields = {
+        "true_negative",
+        "false_positive",
+        "false_negative",
+        "true_positive",
+        "sample_size",
+    }
+
+    if (
+        not isinstance(result, dict)
+        or not required_fields.issubset(result)
+    ):
+        raise RuntimeError(
+            "A matriz de confusão possui formato inesperado."
+        )
+
+    return result
+    
 def load_global_explainability(
     sample_size: int = 500,
 ) -> dict[str, Any]:

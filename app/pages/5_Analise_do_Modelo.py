@@ -11,6 +11,7 @@ if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
 from services.api_client import (
+    load_confusion_matrix,
     load_global_explainability,
     load_latest_scoring,
 )
@@ -89,6 +90,14 @@ def load_cached_global_explainability(
     sample_size: int = 500,
 ) -> dict:
     return load_global_explainability(sample_size)
+
+@st.cache_data(
+    ttl=1800,
+    show_spinner=False,
+)
+def load_cached_confusion_matrix() -> dict:
+    return load_confusion_matrix()
+
 
 model_data = scoring_data["model"]
 execution_data = scoring_data["scoring"]
@@ -193,6 +202,143 @@ with metric_column_6:
             execution_data["population_scored"]
         ),
     )
+
+st.markdown(
+    """
+    <div class="section-title">
+        Diagnóstico das previsões
+    </div>
+    <div class="section-subtitle">
+        Comparação entre os resultados reais e as previsões
+        realizadas no conjunto de teste reservado.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+try:
+    confusion_data = load_cached_confusion_matrix()
+
+    confusion_values = [
+        [
+            confusion_data["true_negative"],
+            confusion_data["false_positive"],
+        ],
+        [
+            confusion_data["false_negative"],
+            confusion_data["true_positive"],
+        ],
+    ]
+
+    confusion_labels = [
+        [
+            format_integer(confusion_data["true_negative"]),
+            format_integer(confusion_data["false_positive"]),
+        ],
+        [
+            format_integer(confusion_data["false_negative"]),
+            format_integer(confusion_data["true_positive"]),
+        ],
+    ]
+
+    confusion_figure = go.Figure(
+        go.Heatmap(
+            z=confusion_values,
+            x=["Não churn", "Churn"],
+            y=["Não churn", "Churn"],
+            text=confusion_labels,
+            texttemplate="%{text}",
+            colorscale=[
+                [0.00, "#08213b"],
+                [0.35, "#0b477d"],
+                [0.70, "#147ac1"],
+                [1.00, "#35a7ff"],
+            ],
+            zmin=0,
+            zmax=max(
+                max(row)
+                for row in confusion_values
+            ),
+            showscale=True,
+            colorbar={
+                "title": {
+                    "text": "Clientes",
+                    "side": "right",
+                    "font": {
+                        "color": "#7890aa",
+                    },
+                },
+                "thickness": 10,
+                "len": 0.72,
+                "tickfont": {
+                    "color": "#7890aa",
+                },
+            },
+            hovertemplate=(
+                "<b>Real: %{y}</b><br>"
+                "Previsto: %{x}<br>"
+                "Clientes: %{z:,}"
+                "<extra></extra>"
+            ),
+        )
+    )
+
+    confusion_figure.update_layout(
+        height=390,
+        margin={
+            "l": 25,
+            "r": 45,
+            "t": 25,
+            "b": 55,
+        },
+        paper_bgcolor="rgba(0, 0, 0, 0)",
+        plot_bgcolor="rgba(0, 0, 0, 0)",
+        font={
+            "color": "#cbd5e1",
+            "family": "Inter, sans-serif",
+        },
+        xaxis={
+            "title": "Previsto",
+            "side": "bottom",
+            "showgrid": False,
+            "color": "#7890aa",
+        },
+        yaxis={
+            "title": "Real",
+            "autorange": "reversed",
+            "showgrid": False,
+            "color": "#7890aa",
+        },
+    )
+
+    matrix_column, empty_column = st.columns([1, 2])
+
+    with matrix_column:
+        with st.container(border=True):
+            st.markdown("#### Matriz de confusão")
+
+            st.plotly_chart(
+                confusion_figure,
+                use_container_width=True,
+                config={
+                    "displayModeBar": False,
+                    "responsive": True,
+                },
+            )
+
+            st.caption(
+                "Conjunto de teste · "
+                f"{format_integer(confusion_data['sample_size'])} "
+                "clientes"
+            )
+
+except RuntimeError as exc:
+    st.error(
+        "Não foi possível carregar a matriz de confusão. "
+        f"Detalhes: {exc}"
+    )
+    
+
 st.markdown(
     """
     <div class="section-title">

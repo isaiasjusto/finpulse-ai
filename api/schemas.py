@@ -142,3 +142,10 @@ class GlobalExplainabilityResponse(BaseModel):
     transformed_feature_count: int
     mean_base_value: float
     features: list[GlobalFeatureImportanceResponse]
+
+class ConfusionMatrixResponse(BaseModel):
+    true_negative: int
+    false_positive: int
+    false_negative: int
+    true_positive: int
+    sample_size: int
