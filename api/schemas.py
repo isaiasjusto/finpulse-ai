@@ -125,3 +125,20 @@ class CustomerListResponse(BaseModel):
     limit: int
     offset: int
     customers: list[CustomerListItemResponse]
+
+class GlobalFeatureImportanceResponse(BaseModel):
+    feature: str
+    mean_absolute_shap: float
+    importance_share: float
+
+
+class GlobalExplainabilityResponse(BaseModel):
+    model_name: str
+    model_alias: str
+    model_version: int
+    run_id: str
+    sample_size: int
+    input_feature_count: int
+    transformed_feature_count: int
+    mean_base_value: float
+    features: list[GlobalFeatureImportanceResponse]

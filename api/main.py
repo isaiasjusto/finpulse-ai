@@ -18,10 +18,10 @@ from api.database import check_database_connection
 
 from api.customer_repository import (
     get_customer_by_id,
+    get_explainability_sample,
     list_customers,
 )
 
-from api.customer_repository import get_customer_by_id
 from api.model_service import ModelService
 from api.portfolio_repository import get_portfolio_summary
 from api.schemas import (
@@ -34,6 +34,7 @@ from api.schemas import (
     PredictionResponse,
     RiskBand,
     StoredPredictionResponse,
+    GlobalExplainabilityResponse,
 )
 
 
@@ -147,6 +148,56 @@ def model_info(request: Request) -> dict[str, object]:
 
     return model_service.get_info()
 
+@app.get(
+    "/model-explainability/global",
+    response_model=GlobalExplainabilityResponse,
+    tags=["explainability"],
+)
+def global_model_explainability(
+    request: Request,
+    sample_size: int = Query(default=500, ge=100, le=5000),
+) -> GlobalExplainabilityResponse:
+    model_service: ModelService = request.app.state.model_service
+
+    if not model_service.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Champion model is not available.",
+        )
+
+    try:
+        sample_rows = get_explainability_sample(sample_size)
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "Explainability sample query failed."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Explainability database is unavailable.",
+        ) from exc
+
+    if not sample_rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No customers are available for explainability.",
+        )
+
+    try:
+        result = model_service.get_global_explainability(
+            pd.DataFrame(sample_rows)
+        )
+    except Exception as exc:
+        logger.exception(
+            "Global explainability calculation failed."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Global explainability calculation failed.",
+        ) from exc
+
+    return GlobalExplainabilityResponse(**result)
 
 @app.get(
     "/portfolio/summary",
@@ -441,3 +492,4 @@ def predict(
         model_version=int(model_info_data["version"]),
         model_alias=str(model_info_data["alias"]),
     )
+    
