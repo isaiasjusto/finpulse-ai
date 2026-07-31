@@ -507,146 +507,269 @@ if selected_customer_id:
             customer["risk_band"],
         )
 
-        profile_column, risk_column = st.columns(
-            [1.4, 1],
-            gap="large",
+        GENDER_LABELS = {
+            "M": "Masculino",
+            "F": "Feminino",
+        }
+
+        MARITAL_LABELS = {
+            "Married": "Casado(a)",
+            "Single": "Solteiro(a)",
+            "Divorced": "Divorciado(a)",
+            "Unknown": "Não informado",
+        }
+
+        CARD_LABELS = {
+            "Blue": "Azul",
+            "Silver": "Prata",
+            "Gold": "Ouro",
+            "Platinum": "Platina",
+        }
+
+        RISK_CLASSES = {
+            "High": "customer360-risk-high",
+            "Medium": "customer360-risk-medium",
+            "Low": "customer360-risk-low",
+        }
+
+        risk_class = RISK_CLASSES.get(
+            customer["risk_band"],
+            "customer360-risk-low",
         )
 
-        with profile_column:
-            st.subheader("Perfil do cliente")
+        churn_probability = min(
+            max(float(customer["churn_probability"]), 0),
+            1,
+        )
 
-            profile_1, profile_2, profile_3 = st.columns(3)
+        risk_angle = churn_probability * 360
 
-            with profile_1:
-                st.metric(
-                    "Idade",
-                    f"{int(customer['customer_age'])} anos",
-                )
+        gender_label = GENDER_LABELS.get(
+            customer["gender"],
+            str(customer["gender"]),
+        )
 
-                st.metric(
-                    "Tempo como cliente",
-                    f"{int(customer['months_on_book'])} meses",
-                )
+        marital_label = MARITAL_LABELS.get(
+            customer["marital_status"],
+            str(customer["marital_status"]),
+        )
 
-            with profile_2:
-                st.metric(
-                    "Gênero",
-                    str(customer["gender"]),
-                )
+        card_label = CARD_LABELS.get(
+            customer["card_category"],
+            str(customer["card_category"]),
+        )
 
-                st.metric(
-                    "Relacionamentos",
-                    format_integer(
-                        customer["total_relationship_count"]
-                    ),
-                )
+        customer_360_html = dedent(
+            f"""
+            <section class="customer360-layout">
 
-            with profile_3:
-                st.metric(
-                    "Estado civil",
-                    str(customer["marital_status"]),
-                )
+                <div class="customer360-panel customer360-data-panel">
 
-                st.metric(
-                    "Categoria do cartão",
-                    str(customer["card_category"]),
-                )
+                    <div class="customer360-panel-header">
+                        <div>
+                            <span>Dados consolidados</span>
+                            <h3>Perfil do cliente</h3>
+                        </div>
 
-            st.subheader("Comportamento e relacionamento")
+                        <div class="customer360-id-badge">
+                            ID {selected_customer_id}
+                        </div>
+                    </div>
 
-            behavior_1, behavior_2, behavior_3 = st.columns(3)
+                    <div class="customer360-detail-grid">
+                        <div class="customer360-detail-card">
+                            <span>Idade</span>
+                            <strong>
+                                {int(customer["customer_age"])} anos
+                            </strong>
+                        </div>
 
-            with behavior_1:
-                st.metric(
-                    "Meses inativo",
-                    format_integer(
-                        customer["months_inactive_last_12m"]
-                    ),
-                )
+                        <div class="customer360-detail-card">
+                            <span>Tempo como cliente</span>
+                            <strong>
+                                {int(customer["months_on_book"])} meses
+                            </strong>
+                        </div>
 
-            with behavior_2:
-                st.metric(
-                    "Contatos em 12 meses",
-                    format_integer(
-                        customer["contacts_count_last_12m"]
-                    ),
-                )
+                        <div class="customer360-detail-card">
+                            <span>Gênero</span>
+                            <strong>{gender_label}</strong>
+                        </div>
 
-            with behavior_3:
-                st.metric(
-                    "Transações",
-                    format_integer(
-                        customer["total_transaction_count"]
-                    ),
-                )
+                        <div class="customer360-detail-card">
+                            <span>Relacionamentos</span>
+                            <strong>
+                                {format_integer(
+                                    customer["total_relationship_count"]
+                                )}
+                            </strong>
+                        </div>
 
-            st.subheader("Perfil financeiro")
+                        <div class="customer360-detail-card">
+                            <span>Estado civil</span>
+                            <strong>{marital_label}</strong>
+                        </div>
 
-            financial_1, financial_2, financial_3 = st.columns(3)
+                        <div class="customer360-detail-card">
+                            <span>Categoria do cartão</span>
+                            <strong>{card_label}</strong>
+                        </div>
+                    </div>
 
-            with financial_1:
-                st.metric(
-                    "Valor transacionado",
-                    format_brl_compact(
-                        customer["total_transaction_amount"]
-                    ),
-                )
+                    <div class="customer360-section-title">
+                        Comportamento e relacionamento
+                    </div>
 
-            with financial_2:
-                st.metric(
-                    "Limite de crédito",
-                    format_brl_compact(
-                        customer["credit_limit"]
-                    ),
-                )
+                    <div class="customer360-detail-grid customer360-grid-three">
+                        <div class="customer360-detail-card">
+                            <span>Meses inativo</span>
+                            <strong>
+                                {format_integer(
+                                    customer[
+                                        "months_inactive_last_12m"
+                                    ]
+                                )}
+                            </strong>
+                        </div>
 
-            with financial_3:
-                st.metric(
-                    "Saldo rotativo",
-                    format_brl_compact(
-                        customer["total_revolving_balance"]
-                    ),
-                )
+                        <div class="customer360-detail-card">
+                            <span>Contatos em 12 meses</span>
+                            <strong>
+                                {format_integer(
+                                    customer[
+                                        "contacts_count_last_12m"
+                                    ]
+                                )}
+                            </strong>
+                        </div>
 
-        with risk_column:
-            st.subheader("Risco de churn")
+                        <div class="customer360-detail-card">
+                            <span>Total de transações</span>
+                            <strong>
+                                {format_integer(
+                                    customer[
+                                        "total_transaction_count"
+                                    ]
+                                )}
+                            </strong>
+                        </div>
+                    </div>
 
-            st.metric(
-                "Probabilidade de churn",
-                format_percentage(
-                    customer["churn_probability"]
-                ),
-            )
+                    <div class="customer360-section-title">
+                        Perfil financeiro
+                    </div>
 
-            risk_1, risk_2 = st.columns(2)
+                    <div class="customer360-detail-grid customer360-grid-three">
+                        <div class="customer360-detail-card">
+                            <span>Valor transacionado</span>
+                            <strong>
+                                {format_brl_compact(
+                                    customer[
+                                        "total_transaction_amount"
+                                    ]
+                                )}
+                            </strong>
+                        </div>
 
-            with risk_1:
-                st.metric(
-                    "Faixa de risco",
-                    risk_label,
-                )
+                        <div class="customer360-detail-card">
+                            <span>Limite de crédito</span>
+                            <strong>
+                                {format_brl_compact(
+                                    customer["credit_limit"]
+                                )}
+                            </strong>
+                        </div>
 
-            with risk_2:
-                st.metric(
-                    "Prioridade",
-                    str(customer["priority_label"]),
-                )
+                        <div class="customer360-detail-card">
+                            <span>Saldo rotativo</span>
+                            <strong>
+                                {format_brl_compact(
+                                    customer[
+                                        "total_revolving_balance"
+                                    ]
+                                )}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
 
-            st.progress(
-                float(customer["churn_probability"]),
-                text="Probabilidade estimada pelo modelo",
-            )
+                <aside class="customer360-panel customer360-risk-panel
+                              {risk_class}">
 
-            st.markdown("#### Ação recomendada")
+                    <div class="customer360-panel-header">
+                        <div>
+                            <span>Predição individual</span>
+                            <h3>Risco de churn</h3>
+                        </div>
 
-            st.info(
-                str(customer["recommended_action"])
-            )
+                        <div class="customer360-status-dot"></div>
+                    </div>
 
-            st.markdown("#### Informações do modelo")
+                    <div class="customer360-risk-summary">
 
-            st.caption(
-                f"Modelo: {customer['model_name']} · "
-                f"Versão: {customer['model_version']} · "
-                f"Alias: {customer['model_alias']}"
-            )
+                        <div
+                            class="customer360-gauge"
+                            style="--risk-angle: {risk_angle}deg;"
+                        >
+                            <div class="customer360-gauge-content">
+                                <strong>
+                                    {format_percentage(
+                                        churn_probability
+                                    )}
+                                </strong>
+                                <span>probabilidade</span>
+                            </div>
+                        </div>
+
+                        <div class="customer360-risk-badges">
+                            <div>
+                                <span>Faixa de risco</span>
+                                <strong>{risk_label}</strong>
+                            </div>
+
+                            <div>
+                                <span>Prioridade</span>
+                                <strong>
+                                    {customer["priority_label"]}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="customer360-action-card">
+                        <span>Ação recomendada</span>
+                        <strong>
+                            {customer["recommended_action"]}
+                        </strong>
+                        <p>
+                            Próxima ação sugerida para a equipe de
+                            relacionamento.
+                        </p>
+                    </div>
+
+                    <div class="customer360-model-footer">
+                        <span>Modelo em produção</span>
+
+                        <strong>{customer["model_name"]}</strong>
+
+                        <div>
+                            Versão {customer["model_version"]}
+                            <span>•</span>
+                            Alias {customer["model_alias"]}
+                        </div>
+                    </div>
+                </aside>
+            </section>
+            """
+        )
+
+        customer_360_html = " ".join(
+            line.strip()
+            for line in customer_360_html.splitlines()
+            if line.strip()
+        )
+
+        st.markdown(
+            customer_360_html,
+            unsafe_allow_html=True,
+        )
