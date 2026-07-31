@@ -58,4 +58,21 @@ def load_retention_priority() -> pd.DataFrame:
 
     return pd.read_sql_query(query, get_database_engine())
 
-    
+@st.cache_data(ttl=300, show_spinner=False)
+def load_customer_priority() -> pd.DataFrame:
+    query = text(
+        """
+        select *
+        from marts.mart_churn_customer_priority
+        order by
+            priority_order,
+            churn_probability desc,
+            total_transaction_amount desc,
+            customer_id
+        """
+    )
+
+    return pd.read_sql_query(
+        query,
+        get_database_engine(),
+    )   
