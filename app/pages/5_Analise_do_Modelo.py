@@ -1,9 +1,11 @@
 from pathlib import Path
 import sys
 from textwrap import dedent
-import streamlit as st
+
 import pandas as pd
 import plotly.graph_objects as go
+import streamlit as st
+
 
 APP_DIR = Path(__file__).resolve().parents[1]
 
@@ -15,6 +17,7 @@ from services.api_client import (
     load_global_explainability,
     load_latest_scoring,
 )
+
 
 st.set_page_config(
     page_title="Análise do Modelo | FinPulse AI",
@@ -57,6 +60,7 @@ except RuntimeError as exc:
     )
     st.stop()
 
+
 FEATURE_LABELS = {
     "customer_age": "Idade do cliente",
     "gender": "Gênero",
@@ -67,8 +71,12 @@ FEATURE_LABELS = {
     "card_category": "Categoria do cartão",
     "months_on_book": "Tempo de relacionamento",
     "total_relationship_count": "Quantidade de relacionamentos",
-    "months_inactive_last_12m": "Meses inativo nos últimos 12 meses",
-    "contacts_count_last_12m": "Contatos nos últimos 12 meses",
+    "months_inactive_last_12m": (
+        "Meses inativo nos últimos 12 meses"
+    ),
+    "contacts_count_last_12m": (
+        "Contatos nos últimos 12 meses"
+    ),
     "credit_limit": "Limite de crédito",
     "total_revolving_balance": "Saldo rotativo total",
     "average_open_to_buy": "Limite médio disponível",
@@ -90,6 +98,7 @@ def load_cached_global_explainability(
     sample_size: int = 500,
 ) -> dict:
     return load_global_explainability(sample_size)
+
 
 @st.cache_data(
     ttl=1800,
@@ -158,8 +167,6 @@ st.markdown(
 
 metric_column_1, metric_column_2, metric_column_3 = st.columns(3)
 
-
-
 with metric_column_1:
     st.metric(
         label="ROC AUC",
@@ -203,18 +210,36 @@ with metric_column_6:
         ),
     )
 
-st.markdown(
+
+matrix_column, shap_column = st.columns(
+    [1, 1.15],
+    gap="large",
+)
+
+matrix_column.markdown(
     """
     <div class="section-title">
         Diagnóstico das previsões
     </div>
     <div class="section-subtitle">
-        Comparação entre os resultados reais e as previsões
-        realizadas no conjunto de teste reservado.
+        Resultados reais e previstos no teste reservado.
     </div>
     """,
     unsafe_allow_html=True,
 )
+
+shap_column.markdown(
+    """
+    <div class="section-title">
+        O que mais influencia o churn?
+    </div>
+    <div class="section-subtitle">
+        Importância global calculada com SHAP.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 try:
     confusion_data = load_cached_confusion_matrix()
@@ -284,7 +309,7 @@ try:
     )
 
     confusion_figure.update_layout(
-        height=350,
+        height=430,
         margin={
             "l": 25,
             "r": 45,
@@ -311,63 +336,28 @@ try:
         },
     )
 
-    matrix_column, shap_column = st.columns(
-    [1, 2.35],
-    gap="large",
-)
-
-    with matrix_column:
-        st.markdown(
-            """
-            <div class="section-title">
-                Diagnóstico das previsões
-            </div>
-            <div class="section-subtitle">
-                Resultados reais e previstos no teste reservado.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    
-    with shap_column:
-        st.markdown(
-            """
-            <div class="section-title">
-                O que mais influencia o churn?
-            </div>
-            <div class="section-subtitle">
-                Importância global calculada com SHAP.
-            </div>
-            """,
-            unsafe_allow_html=True,
+    with matrix_column.container(border=True):
+        st.plotly_chart(
+            confusion_figure,
+            use_container_width=True,
+            config={
+                "displayModeBar": False,
+                "responsive": True,
+            },
         )
 
-
-    st.caption(
-                "Conjunto de teste · "
-                f"{format_integer(confusion_data['sample_size'])} "
-                "clientes"
-            )
+        st.caption(
+            "Conjunto de teste · "
+            f"{format_integer(confusion_data['sample_size'])} "
+            "clientes"
+        )
 
 except RuntimeError as exc:
-    st.error(
+    matrix_column.error(
         "Não foi possível carregar a matriz de confusão. "
         f"Detalhes: {exc}"
     )
-    
 
-st.markdown(
-    """
-    <div class="section-title">
-        O que mais influencia o churn?
-    </div>
-    <div class="section-subtitle">
-        Importância global calculada com SHAP sobre uma amostra
-        determinística da carteira.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
 try:
     explainability = load_cached_global_explainability(
@@ -485,7 +475,7 @@ try:
         },
     )
 
-    with st.container(border=True):
+    with shap_column.container(border=True):
         st.plotly_chart(
             figure,
             use_container_width=True,
@@ -502,17 +492,18 @@ try:
             f"{explainability['input_feature_count']} variáveis"
         )
 
-    st.info(
+    shap_column.info(
         "Os percentuais representam a intensidade global da "
         "influência de cada variável. Eles não indicam, sozinhos, "
         "se a variável aumenta ou reduz o risco de churn."
     )
 
 except RuntimeError as exc:
-    st.error(
+    shap_column.error(
         "Não foi possível carregar a explicabilidade global. "
         f"Detalhes: {exc}"
     )
+
 
 st.markdown(
     """
