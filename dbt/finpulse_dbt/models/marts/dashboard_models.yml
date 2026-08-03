@@ -1,0 +1,206 @@
+version: 2
+
+models:
+  - name: int_churn_dashboard_customer_latest
+    description: "Base unificada com clientes e a previsão de churn mais recente."
+
+    columns:
+      - name: customer_id
+        description: "Identificador único do cliente."
+        data_tests:
+          - not_null
+          - unique
+
+      - name: churn_flag
+        description: "Resultado real observado de churn."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+      - name: churn_probability
+        description: "Probabilidade prevista de churn."
+        data_tests:
+          - not_null
+
+      - name: risk_band
+        description: "Faixa de risco calculada pelo scoring."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Low", "Medium", "High"]
+
+      - name: model_version
+        data_tests:
+          - not_null
+
+      - name: model_alias
+        data_tests:
+          - not_null
+
+      - name: scoring_run_id
+        data_tests:
+          - not_null
+
+      - name: scored_at
+        data_tests:
+          - not_null
+
+
+  - name: mart_churn_dashboard_overview
+    description: "Indicadores consolidados da carteira para a visão geral."
+
+    columns:
+      - name: total_customers
+        data_tests:
+          - not_null
+
+      - name: observed_churn_customers
+        data_tests:
+          - not_null
+
+      - name: observed_churn_rate
+        data_tests:
+          - not_null
+
+      - name: high_risk_customers
+        data_tests:
+          - not_null
+
+      - name: average_churn_probability
+        data_tests:
+          - not_null
+
+      - name: model_version
+        data_tests:
+          - not_null
+
+      - name: model_alias
+        data_tests:
+          - not_null
+
+      - name: scoring_run_id
+        data_tests:
+          - not_null
+
+      - name: scored_at
+        data_tests:
+          - not_null
+
+
+  - name: mart_churn_risk_distribution
+    description: "Distribuição da carteira entre as faixas de risco."
+
+    columns:
+      - name: risk_order
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+                quote: false
+
+      - name: risk_band
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: ["Low", "Medium", "High"]
+
+      - name: customers
+        data_tests:
+          - not_null
+
+      - name: observed_churn_customers
+        data_tests:
+          - not_null
+
+      - name: model_version
+        data_tests:
+          - not_null
+
+      - name: model_alias
+        data_tests:
+          - not_null
+
+      - name: scoring_run_id
+        data_tests:
+          - not_null
+
+      - name: scored_at
+        data_tests:
+          - not_null
+
+
+  - name: mart_churn_retention_priority
+    description: "Segmentação da carteira por risco de churn e valor transacionado para priorização de retenção."
+
+    columns:
+      - name: risk_band
+        description: "Faixa de risco de churn."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Low", "Medium", "High"]
+
+      - name: risk_order
+        description: "Ordem usada para exibir as faixas de risco."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+                quote: false
+
+      - name: value_band
+        description: "Classificação do cliente entre baixo e alto valor transacionado."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Low", "High"]
+
+      - name: value_order
+        description: "Ordem usada para exibir as faixas de valor."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+                quote: false
+
+      - name: customers
+        description: "Quantidade de clientes no segmento."
+        data_tests:
+          - not_null
+
+      - name: customer_share
+        description: "Participação do segmento na quantidade total de clientes."
+        data_tests:
+          - not_null
+
+      - name: total_transaction_amount
+        description: "Valor total transacionado pelos clientes do segmento."
+        data_tests:
+          - not_null
+
+      - name: average_transaction_amount
+        description: "Valor médio transacionado pelos clientes do segmento."
+        data_tests:
+          - not_null
+
+      - name: transaction_amount_share
+        description: "Participação do segmento no valor total transacionado."
+        data_tests:
+          - not_null
+
+      - name: average_churn_probability
+        description: "Probabilidade média de churn no segmento."
+        data_tests:
+          - not_null

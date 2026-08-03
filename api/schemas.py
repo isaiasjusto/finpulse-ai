@@ -71,6 +71,34 @@ class PortfolioSummaryResponse(BaseModel):
     maximum_model_version: int
     model_alias: str
     latest_scoring_at: datetime
+class LatestScoringModelResponse(BaseModel):
+    name: str
+    alias: str
+    version: int
+    run_id: str
+    status: str
+
+
+class LatestScoringExecutionResponse(BaseModel):
+    executed_at: datetime
+    population_scored: int
+
+
+class LatestScoringMetricsResponse(BaseModel):
+    roc_auc: float | None = None
+    balanced_accuracy: float | None = None
+    f1: float | None = None
+    precision: float | None = None
+    recall: float | None = None
+    ks: float | None = None
+    psi: float | None = None
+
+
+class LatestScoringResponse(BaseModel):
+    status: str
+    model: LatestScoringModelResponse
+    scoring: LatestScoringExecutionResponse
+    metrics: LatestScoringMetricsResponse
 
 class RiskBand(str, Enum):
     low = "Low"
@@ -97,3 +125,27 @@ class CustomerListResponse(BaseModel):
     limit: int
     offset: int
     customers: list[CustomerListItemResponse]
+
+class GlobalFeatureImportanceResponse(BaseModel):
+    feature: str
+    mean_absolute_shap: float
+    importance_share: float
+
+
+class GlobalExplainabilityResponse(BaseModel):
+    model_name: str
+    model_alias: str
+    model_version: int
+    run_id: str
+    sample_size: int
+    input_feature_count: int
+    transformed_feature_count: int
+    mean_base_value: float
+    features: list[GlobalFeatureImportanceResponse]
+
+class ConfusionMatrixResponse(BaseModel):
+    true_negative: int
+    false_positive: int
+    false_negative: int
+    true_positive: int
+    sample_size: int

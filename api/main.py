@@ -18,21 +18,24 @@ from api.database import check_database_connection
 
 from api.customer_repository import (
     get_customer_by_id,
+    get_explainability_sample,
     list_customers,
 )
 
-from api.customer_repository import get_customer_by_id
 from api.model_service import ModelService
 from api.portfolio_repository import get_portfolio_summary
 from api.schemas import (
+    ConfusionMatrixResponse,
+    CustomerListResponse,
     CustomerPredictionResponse,
     CustomerResponse,
+    GlobalExplainabilityResponse,
+    LatestScoringResponse,
     PortfolioSummaryResponse,
     PredictionRequest,
     PredictionResponse,
-    StoredPredictionResponse,
-    CustomerListResponse,
     RiskBand,
+    StoredPredictionResponse,
 )
 
 
@@ -146,6 +149,86 @@ def model_info(request: Request) -> dict[str, object]:
 
     return model_service.get_info()
 
+@app.get(
+    "/model-explainability/global",
+    response_model=GlobalExplainabilityResponse,
+    tags=["explainability"],
+)
+def global_model_explainability(
+    request: Request,
+    sample_size: int = Query(default=500, ge=100, le=5000),
+) -> GlobalExplainabilityResponse:
+    model_service: ModelService = request.app.state.model_service
+
+    if not model_service.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Champion model is not available.",
+        )
+
+    try:
+        sample_rows = get_explainability_sample(sample_size)
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "Explainability sample query failed."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Explainability database is unavailable.",
+        ) from exc
+
+    if not sample_rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No customers are available for explainability.",
+        )
+
+    try:
+        result = model_service.get_global_explainability(
+            pd.DataFrame(sample_rows)
+        )
+    except Exception as exc:
+        logger.exception(
+            "Global explainability calculation failed."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Global explainability calculation failed.",
+        ) from exc
+
+    return GlobalExplainabilityResponse(**result)
+
+@app.get(
+    "/model-evaluation/confusion-matrix",
+    response_model=ConfusionMatrixResponse,
+    tags=["model-evaluation"],
+)
+def model_confusion_matrix(
+    request: Request,
+) -> ConfusionMatrixResponse:
+    model_service: ModelService = request.app.state.model_service
+
+    if not model_service.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Champion model is not available.",
+        )
+
+    try:
+        result = model_service.get_confusion_matrix()
+    except RuntimeError as exc:
+        logger.exception(
+            "Confusion matrix reconstruction failed."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Confusion matrix reconstruction failed.",
+        ) from exc
+
+    return ConfusionMatrixResponse(**result)
 
 @app.get(
     "/portfolio/summary",
@@ -164,6 +247,67 @@ def portfolio_summary() -> PortfolioSummaryResponse:
         ) from exc
 
     return PortfolioSummaryResponse(**summary)
+
+@app.get(
+    "/scoring/latest",
+    response_model=LatestScoringResponse,
+    tags=["scoring"],
+)
+def latest_scoring(
+    request: Request,
+) -> LatestScoringResponse:
+    model_service: ModelService = request.app.state.model_service
+
+    if not model_service.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Champion model is not available.",
+        )
+
+    try:
+        portfolio_summary_data = get_portfolio_summary()
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "Latest scoring summary query failed."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Scoring database is unavailable.",
+        ) from exc
+
+    model_info_data = model_service.get_info()
+    metrics_data = model_service.get_metrics()
+
+    return LatestScoringResponse(
+        status="available",
+        model={
+            "name": str(model_info_data["name"]),
+            "alias": str(model_info_data["alias"]),
+            "version": int(model_info_data["version"]),
+            "run_id": str(model_info_data["run_id"]),
+            "status": str(model_info_data["status"]),
+        },
+        scoring={
+            "executed_at": portfolio_summary_data[
+                "latest_scoring_at"
+            ],
+            "population_scored": int(
+                portfolio_summary_data["total_customers"]
+            ),
+        },
+        metrics={
+            "roc_auc": metrics_data["roc_auc"],
+            "balanced_accuracy": metrics_data[
+                "balanced_accuracy"
+            ],
+            "f1": metrics_data["f1"],
+            "precision": metrics_data["precision"],
+            "recall": metrics_data["recall"],
+            "ks": metrics_data["ks"],
+            "psi": metrics_data["psi"],
+        },
+    )
 
 @app.get(
     "/customers",
@@ -379,3 +523,4 @@ def predict(
         model_version=int(model_info_data["version"]),
         model_alias=str(model_info_data["alias"]),
     )
+    
