@@ -284,7 +284,7 @@ try:
     )
 
     confusion_figure.update_layout(
-        height=390,
+        height=350,
         margin={
             "l": 25,
             "r": 45,
@@ -311,22 +311,39 @@ try:
         },
     )
 
-    matrix_column, empty_column = st.columns([1, 2])
+    matrix_column, shap_column = st.columns(
+    [1, 2.35],
+    gap="large",
+)
 
     with matrix_column:
-        with st.container(border=True):
-            st.markdown("#### Matriz de confusão")
+        st.markdown(
+            """
+            <div class="section-title">
+                Diagnóstico das previsões
+            </div>
+            <div class="section-subtitle">
+                Resultados reais e previstos no teste reservado.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    
+    with shap_column:
+        st.markdown(
+            """
+            <div class="section-title">
+                O que mais influencia o churn?
+            </div>
+            <div class="section-subtitle">
+                Importância global calculada com SHAP.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-            st.plotly_chart(
-                confusion_figure,
-                use_container_width=True,
-                config={
-                    "displayModeBar": False,
-                    "responsive": True,
-                },
-            )
 
-            st.caption(
+    st.caption(
                 "Conjunto de teste · "
                 f"{format_integer(confusion_data['sample_size'])} "
                 "clientes"
@@ -429,7 +446,7 @@ try:
     )
 
     figure.update_layout(
-        height=570,
+        height=430,
         margin={
             "l": 20,
             "r": 75,
