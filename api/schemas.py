@@ -2,6 +2,8 @@ from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from enum import Enum
 
+
+
 class PredictionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -149,3 +151,34 @@ class ConfusionMatrixResponse(BaseModel):
     false_negative: int
     true_positive: int
     sample_size: int
+
+class ImpactDirection(str, Enum):
+    increases_risk = "increases_risk"
+    reduces_risk = "reduces_risk"
+    neutral = "neutral"
+
+
+class IndividualFeatureImpactResponse(BaseModel):
+    feature: str
+    value: str | int | float
+    shap_value: float
+    absolute_shap: float
+    importance_share: float
+    impact_direction: ImpactDirection
+
+class IndividualExplainabilityResponse(BaseModel):
+    customer_id: int
+    churn_probability: float
+    churn_prediction: int
+    prediction_label: str
+    risk_band: RiskBand
+    model_name: str
+    model_alias: str
+    model_version: int
+    run_id: str
+    input_feature_count: int
+    transformed_feature_count: int
+    base_value: float
+    features: list[IndividualFeatureImpactResponse]
+    risk_increasing_factors: list[IndividualFeatureImpactResponse]
+    risk_reducing_factors: list[IndividualFeatureImpactResponse]

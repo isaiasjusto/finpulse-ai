@@ -11,7 +11,7 @@ if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
 from services.database import load_customer_priority
-
+from services.api_client import load_customer_explainability
 
 st.set_page_config(
     page_title="Clientes em Risco | FinPulse AI",
@@ -52,6 +52,101 @@ def format_brl_compact(value) -> str:
 
 
 load_css()
+
+def format_feature_value(feature: str, value) -> str:
+    categorical_labels = {
+        "gender": {
+            "M": "Masculino",
+            "F": "Feminino",
+        },
+        "education_level": {
+            "Uneducated": "Sem escolaridade formal",
+            "High School": "Ensino médio",
+            "College": "Ensino superior incompleto",
+            "Graduate": "Graduado",
+            "Post-Graduate": "Pós-graduado",
+            "Doctorate": "Doutorado",
+            "Unknown": "Não informado",
+        },
+        "marital_status": {
+            "Married": "Casado(a)",
+            "Single": "Solteiro(a)",
+            "Divorced": "Divorciado(a)",
+            "Unknown": "Não informado",
+        },
+        "income_category": {
+            "Less than $40K": "Menos de US$ 40 mil",
+            "$40K - $60K": "De US$ 40 mil a US$ 60 mil",
+            "$60K - $80K": "De US$ 60 mil a US$ 80 mil",
+            "$80K - $120K": "De US$ 80 mil a US$ 120 mil",
+            "$120K +": "Acima de US$ 120 mil",
+            "Unknown": "Não informado",
+        },
+        "card_category": {
+            "Blue": "Azul",
+            "Silver": "Prata",
+            "Gold": "Ouro",
+            "Platinum": "Platina",
+        },
+    }
+
+    if feature in categorical_labels:
+        return categorical_labels[feature].get(
+            str(value),
+            str(value),
+        )
+
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+
+    currency_features = {
+        "credit_limit",
+        "total_revolving_balance",
+        "average_open_to_buy",
+        "total_transaction_amount",
+    }
+
+    percentage_features = {
+        "amount_change_q4_q1",
+        "transaction_count_change_q4_q1",
+        "average_utilization_ratio",
+    }
+
+    integer_features = {
+        "customer_age",
+        "dependent_count",
+        "months_on_book",
+        "total_relationship_count",
+        "months_inactive_last_12m",
+        "contacts_count_last_12m",
+        "total_transaction_count",
+    }
+
+    if feature in currency_features:
+        formatted_value = f"{numeric_value:,.2f}"
+        formatted_value = (
+            formatted_value
+            .replace(",", "TEMP")
+            .replace(".", ",")
+            .replace("TEMP", ".")
+        )
+        return f"R$ {formatted_value}"
+
+    if feature in percentage_features:
+        return (
+            f"{numeric_value * 100:.2f}%"
+            .replace(".", ",")
+        )
+
+    if feature in integer_features:
+        return format_integer(numeric_value)
+
+    return (
+        f"{numeric_value:.2f}"
+        .replace(".", ",")
+    )
 
 
 try:
@@ -470,6 +565,19 @@ if selected_customer_id:
     if not selected_customer_df.empty:
         customer = selected_customer_df.iloc[0]
 
+        try:
+            customer_explainability = (
+                load_customer_explainability(
+                    str(selected_customer_id)
+                )
+            )
+            explainability_error = None
+
+        except RuntimeError as exc:
+            customer_explainability = None
+            explainability_error = str(exc)
+            
+            
         st.markdown("---")
 
         customer_header_html = dedent(
@@ -510,6 +618,30 @@ if selected_customer_id:
         GENDER_LABELS = {
             "M": "Masculino",
             "F": "Feminino",
+        }
+        
+        FEATURE_LABELS = {
+            "customer_age": "Idade do cliente",
+            "gender": "Gênero",
+            "dependent_count": "Número de dependentes",
+            "education_level": "Escolaridade",
+            "marital_status": "Estado civil",
+            "income_category": "Faixa de renda",
+            "card_category": "Categoria do cartão",
+            "months_on_book": "Tempo como cliente",
+            "total_relationship_count": "Produtos contratados",
+            "months_inactive_last_12m": "Meses inativo",
+            "contacts_count_last_12m": "Contatos nos últimos 12 meses",
+            "credit_limit": "Limite de crédito",
+            "total_revolving_balance": "Saldo rotativo",
+            "average_open_to_buy": "Crédito médio disponível",
+            "amount_change_q4_q1": "Variação do valor transacionado",
+            "total_transaction_amount": "Valor total transacionado",
+            "total_transaction_count": "Quantidade de transações",
+            "transaction_count_change_q4_q1": (
+                "Variação da quantidade de transações"
+            ),
+            "average_utilization_ratio": "Utilização média do limite",
         }
 
         MARITAL_LABELS = {
@@ -773,3 +905,77 @@ if selected_customer_id:
             customer_360_html,
             unsafe_allow_html=True,
         )
+        
+        st.markdown("### Explicabilidade individual")
+
+        st.caption(
+            "Principais características que influenciaram "
+            "a previsão de churn deste cliente."
+        )
+
+        if explainability_error:
+            st.warning(explainability_error)
+
+        elif customer_explainability:
+            increasing_column, reducing_column = st.columns(2)
+
+            with increasing_column:
+                st.markdown("#### Fatores que aumentam o risco")
+
+                for factor in customer_explainability[
+                    "risk_increasing_factors"
+                ]:
+                    importance_share = min(
+                        max(float(factor["importance_share"]), 0.0),
+                        1.0,
+                    )
+
+                    feature_label = FEATURE_LABELS.get(
+                            factor["feature"],
+                            factor["feature"],
+                        )
+
+                    st.markdown(f"**{feature_label}**")
+                    
+                    formatted_feature_value = format_feature_value(
+                        factor["feature"],
+                        factor["value"],
+                    )
+                    
+                    st.caption(
+                        f"Valor observado: {formatted_feature_value} · "
+                        f"Participação: "
+                        f"{importance_share * 100:.2f}%"
+                    )
+                    st.progress(importance_share)
+
+            with reducing_column:
+                st.markdown("#### Fatores que reduzem o risco")
+
+                for factor in customer_explainability[
+                    "risk_reducing_factors"
+                ]:
+                    importance_share = min(
+                        max(float(factor["importance_share"]), 0.0),
+                        1.0,
+                    )
+
+                    feature_label = FEATURE_LABELS.get(
+                        factor["feature"],
+                        factor["feature"],
+                    )
+
+                    formatted_feature_value = format_feature_value(
+                        factor["feature"],
+                        factor["value"],
+                    )
+
+                    st.markdown(f"**{feature_label}**")
+
+                    st.caption(
+                        f"Valor observado: {formatted_feature_value} · "
+                        f"Participação: "
+                        f"{importance_share * 100:.2f}%"
+                    )
+
+                    st.progress(importance_share)

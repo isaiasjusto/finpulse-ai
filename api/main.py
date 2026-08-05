@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Request, Response, status
+
 from sqlalchemy.exc import SQLAlchemyError
 
 from fastapi import (
@@ -13,6 +13,8 @@ from fastapi import (
     Response,
     status,
 )
+
+
 
 from api.database import check_database_connection
 
@@ -30,6 +32,7 @@ from api.schemas import (
     CustomerPredictionResponse,
     CustomerResponse,
     GlobalExplainabilityResponse,
+    IndividualExplainabilityResponse,
     LatestScoringResponse,
     PortfolioSummaryResponse,
     PredictionRequest,
@@ -346,6 +349,87 @@ def customer_list(
         customers=customers,
     )
 
+@app.get(
+    "/customers/{customer_id}/explainability",
+    response_model=IndividualExplainabilityResponse,
+    tags=["customers"],
+)
+def customer_explainability(
+    customer_id: int,
+    request: Request,
+) -> IndividualExplainabilityResponse:
+    model_service: ModelService = request.app.state.model_service
+
+    if not model_service.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Champion model is not available.",
+        )
+
+    try:
+        customer = get_customer_by_id(customer_id)
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "Database query failed for customer %s.",
+            customer_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Customer database is unavailable.",
+        ) from exc
+
+    if customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer {customer_id} was not found.",
+        )
+
+    if (
+        customer["churn_prediction"] is None
+        or customer["churn_probability"] is None
+        or customer["risk_band"] is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Customer {customer_id} does not have "
+                "a stored scoring result."
+            ),
+        )
+
+    features_data = {
+        feature_name: customer[feature_name]
+        for feature_name in MODEL_FEATURE_NAMES
+    }
+
+    validated_features = PredictionRequest(**features_data)
+    model_input = pd.DataFrame(
+        [validated_features.model_dump()]
+    )
+
+    try:
+        explainability_data = (
+            model_service.get_individual_explainability(
+                model_input
+            )
+        )
+    except Exception as exc:
+        logger.exception(
+            "Individual explainability failed for customer %s.",
+            customer_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Individual explainability failed.",
+        ) from exc
+
+    return IndividualExplainabilityResponse(
+        customer_id=customer_id,
+        risk_band=RiskBand(str(customer["risk_band"])),
+        **explainability_data,
+    )
 
 @app.get(
     "/customers/{customer_id}",
