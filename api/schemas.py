@@ -182,3 +182,28 @@ class IndividualExplainabilityResponse(BaseModel):
     features: list[IndividualFeatureImpactResponse]
     risk_increasing_factors: list[IndividualFeatureImpactResponse]
     risk_reducing_factors: list[IndividualFeatureImpactResponse]
+
+class RetentionRecommendationContent(BaseModel):
+    case_summary: str
+    risk_interpretation: str
+    main_risk_signals: list[str]
+    protective_factors: list[str]
+    recommended_action: str
+    approach_guidance: str
+    suggested_message: str
+    attention_points: list[str]
+
+
+class RecommendationGenerationResponse(BaseModel):
+    provider: str
+    model: str
+    generated_at: datetime
+
+
+class CustomerRetentionRecommendationResponse(BaseModel):
+    customer_id: int
+    churn_probability: float
+    risk_band: RiskBand
+    priority_label: str
+    recommendation: RetentionRecommendationContent
+    generation: RecommendationGenerationResponse
