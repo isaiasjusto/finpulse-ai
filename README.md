@@ -149,7 +149,7 @@ Responsabilidades por componente:
 | dbt | staging, marts, documentação e testes de qualidade |
 | Jupyter | ingestão, análise, treinamento, validação e scoring |
 | MLflow | experimentos, métricas, parâmetros, lineage e Model Registry |
-| FastAPI | serving do champion, consultas operacionais, avaliação e SHAP global |
+| FastAPI | serving do champion, consultas operacionais, avaliação e SHAP global e individual |
 | Streamlit | visualização executiva, operação de retenção e governança do modelo |
 | Docker Compose | reprodução, healthchecks e comunicação entre os serviços |
 
@@ -524,7 +524,7 @@ As credenciais presentes no Compose são exclusivas para desenvolvimento local. 
 - Não existe timestamp de referência para validação temporal; por isso o split é estratificado.
 - As métricas refletem este dataset e não devem ser generalizadas para outra população sem nova validação.
 - A alta capacidade preditiva depende principalmente de variáveis transacionais fortemente associadas ao target.
-- A explicabilidade atual é global; explicações individuais serão adicionadas na próxima fase.
+- As explicações SHAP representam associações aprendidas pelo modelo e não devem ser interpretadas como relações causais.
 - O projeto não representa recomendação financeira, score regulatório ou decisão automática de crédito.
 
 ## Status do projeto
@@ -556,7 +556,8 @@ As credenciais presentes no Compose são exclusivas para desenvolvimento local. 
 - [x] Matriz de confusão no dashboard
 - [x] Explicabilidade global com SHAP
 - [x] Rastreabilidade de modelo e scoring
-- [ ] Cliente 360 com explicabilidade individual
+- [x] Explicabilidade individual com SHAP
+- [ ] Cliente 360 como página independente
 - [ ] Recomendações inteligentes de retenção
 - [ ] Assistente FinPulse com chat
 - [ ] Alertas e automações com n8n
