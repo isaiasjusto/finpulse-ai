@@ -152,6 +152,29 @@ RISK_LABELS = {
     "Low": "Baixo risco",
 }
 
+FEATURE_LABELS = {
+    "customer_age": "Idade do cliente",
+    "gender": "Gênero",
+    "dependent_count": "Número de dependentes",
+    "education_level": "Escolaridade",
+    "marital_status": "Estado civil",
+    "income_category": "Faixa de renda",
+    "card_category": "Categoria do cartão",
+    "months_on_book": "Tempo como cliente",
+    "total_relationship_count": "Produtos contratados",
+    "months_inactive_last_12m": "Meses inativo",
+    "contacts_count_last_12m": "Contatos nos últimos 12 meses",
+    "credit_limit": "Limite de crédito",
+    "total_revolving_balance": "Saldo rotativo",
+    "average_open_to_buy": "Crédito médio disponível",
+    "amount_change_q4_q1": "Variação do valor transacionado",
+    "total_transaction_amount": "Valor total transacionado",
+    "total_transaction_count": "Quantidade de transações",
+    "transaction_count_change_q4_q1": (
+        "Variação da quantidade de transações"
+    ),
+    "average_utilization_ratio": "Utilização média do limite",
+}
 
 try:
     customer_priority_df = load_customer_priority()
@@ -342,6 +365,10 @@ def format_customer_option(customer_id: str) -> str:
         f"Prioridade {customer_row['priority_label']}"
     )
 
+def format_ratio_change(value) -> str:
+    percentage_change = (float(value) - 1) * 100
+    return f"{percentage_change:+.2f}%".replace(".", ",")
+
 
 selected_customer_id = st.selectbox(
     "Cliente selecionado",
@@ -417,16 +444,16 @@ with st.container(border=True):
         st.columns(4)
     )
 
-with age_column:
-    age_value = format_feature_value(
-        "customer_age",
-        selected_customer["customer_age"],
-    )
+    with age_column:
+        age_value = format_feature_value(
+            "customer_age",
+            selected_customer["customer_age"],
+        )
 
-    st.metric(
-        "Idade",
-        f"{age_value} anos",
-    )
+        st.metric(
+            "Idade",
+            f"{age_value} anos",
+        )
 
     with gender_column:
         st.metric(
@@ -486,16 +513,16 @@ with age_column:
             ),
         )
 
-with relationship_column:
-    relationship_months = format_feature_value(
-        "months_on_book",
-        selected_customer["months_on_book"],
-    )
+    with relationship_column:
+        relationship_months = format_feature_value(
+            "months_on_book",
+            selected_customer["months_on_book"],
+        )
 
-    st.metric(
-        "Tempo de relacionamento",
-        f"{relationship_months} meses",
-    )
+        st.metric(
+            "Tempo de relacionamento",
+            f"{relationship_months} meses",
+        )
 st.markdown("## Relacionamento e comportamento")
 
 with st.container(border=True):
@@ -581,3 +608,148 @@ with st.container(border=True):
                 selected_customer["average_utilization_ratio"],
             ),
         )
+st.markdown("## Movimentação transacional")
+
+with st.container(border=True):
+    amount_column, count_column, amount_change_column, count_change_column = (
+        st.columns(4)
+    )
+
+    with amount_column:
+        st.metric(
+            "Valor total transacionado",
+            format_feature_value(
+                "total_transaction_amount",
+                selected_customer["total_transaction_amount"],
+            ),
+        )
+
+    with count_column:
+        st.metric(
+            "Quantidade de transações",
+            format_feature_value(
+                "total_transaction_count",
+                selected_customer["total_transaction_count"],
+            ),
+        )
+
+    with amount_change_column:
+        st.metric(
+            "Variação do valor — Q4 vs. Q1",
+            format_ratio_change(
+                selected_customer["amount_change_q4_q1"]
+            ),
+        )
+
+    with count_change_column:
+        st.metric(
+            "Variação das transações — Q4 vs. Q1",
+            format_ratio_change(
+                selected_customer[
+                    "transaction_count_change_q4_q1"
+                ]
+            ),
+        )
+
+    st.caption(
+        "As variações comparam o quarto trimestre com o primeiro. "
+        "Valores negativos indicam redução da atividade do cliente."
+    )
+
+st.markdown("## Explicabilidade individual")
+
+st.caption(
+    "Principais características que influenciaram "
+    "a previsão de churn deste cliente."
+)
+
+try:
+    with st.spinner(
+        "Carregando a explicabilidade do cliente..."
+    ):
+        customer_explainability = (
+            load_customer_explainability(
+                str(selected_customer_id)
+            )
+        )
+
+    explainability_error = None
+
+except RuntimeError as exc:
+    customer_explainability = None
+    explainability_error = str(exc)
+
+
+if explainability_error:
+    st.warning(explainability_error)
+
+elif customer_explainability:
+    increasing_column, reducing_column = st.columns(2)
+
+    with increasing_column:
+        st.markdown("### Fatores que aumentam o risco")
+
+        for factor in customer_explainability[
+            "risk_increasing_factors"
+        ]:
+            importance_share = min(
+                max(
+                    float(factor["importance_share"]),
+                    0.0,
+                ),
+                1.0,
+            )
+
+            feature_label = FEATURE_LABELS.get(
+                factor["feature"],
+                factor["feature"],
+            )
+
+            formatted_feature_value = format_feature_value(
+                factor["feature"],
+                factor["value"],
+            )
+
+            st.markdown(f"**{feature_label}**")
+
+            st.caption(
+                f"Valor observado: {formatted_feature_value} · "
+                f"Participação: "
+                f"{importance_share * 100:.2f}%"
+            )
+
+            st.progress(importance_share)
+
+    with reducing_column:
+        st.markdown("### Fatores que reduzem o risco")
+
+        for factor in customer_explainability[
+            "risk_reducing_factors"
+        ]:
+            importance_share = min(
+                max(
+                    float(factor["importance_share"]),
+                    0.0,
+                ),
+                1.0,
+            )
+
+            feature_label = FEATURE_LABELS.get(
+                factor["feature"],
+                factor["feature"],
+            )
+
+            formatted_feature_value = format_feature_value(
+                factor["feature"],
+                factor["value"],
+            )
+
+            st.markdown(f"**{feature_label}**")
+
+            st.caption(
+                f"Valor observado: {formatted_feature_value} · "
+                f"Participação: "
+                f"{importance_share * 100:.2f}%"
+            )
+
+            st.progress(importance_share)
