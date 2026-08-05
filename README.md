@@ -18,7 +18,7 @@
 
 O **FinPulse AI** transforma dados de clientes de cartão de crédito em uma solução rastreável de previsão de churn e apoio à retenção. O projeto cobre o fluxo completo entre armazenamento, qualidade, transformação analítica, treinamento, validação, registro, serving e consumo das previsões em um dashboard operacional.
 
-Além de estimar a probabilidade de cancelamento, a plataforma organiza a carteira por faixa de risco e prioridade, permite analisar clientes críticos e apresenta métricas, matriz de confusão, explicabilidade global com SHAP e rastreabilidade do modelo champion.
+Além de estimar a probabilidade de cancelamento, a plataforma organiza a carteira por faixa de risco e prioridade, permite analisar clientes críticos e apresenta métricas, matriz de confusão, explicabilidade global e individual com SHAP e rastreabilidade do modelo champion.
 
 O projeto foi construído como portfólio prático de:
 
@@ -65,6 +65,7 @@ A solução operacional atualmente entrega:
 - dashboard multipágina em Streamlit;
 - priorização de retenção por risco e relevância de negócio;
 - explicabilidade global com SHAP para as 19 features originais;
+- explicabilidade individual com separação dos fatores que aumentam e reduzem o risco;
 - rastreabilidade entre treinamento, versão do modelo e execução do scoring.
 
 ## Problema de negócio
@@ -293,6 +294,7 @@ O artefato é recuperado pelo MLflow a partir do MinIO e mantido em memória par
 | `GET` | `/customers/{customer_id}` | retorna features e previsão armazenada do cliente |
 | `POST` | `/customers/{customer_id}/predict` | executa nova inferência e compara com o scoring armazenado |
 | `POST` | `/predict` | executa inferência a partir das 19 features |
+| `GET` | `/customers/{customer_id}/explainability` | Retorna a explicabilidade SHAP individual do cliente |
 
 A documentação OpenAPI pode ser explorada em:
 
@@ -342,6 +344,8 @@ O Streamlit transforma previsões e métricas técnicas em uma experiência de a
 
 ### Análise do Modelo
 
+A área de análise reúne:
+
 - identificação e métricas do modelo champion;
 - matriz de confusão;
 - explicabilidade global com SHAP;
@@ -349,7 +353,20 @@ O Streamlit transforma previsões e métricas técnicas em uma experiência de a
 - ranking das variáveis mais influentes;
 - rastreabilidade por modelo, versão, Run ID e data do scoring.
 
-A importância SHAP global representa a intensidade média da influência de cada variável. Ela não indica, isoladamente, se valores maiores sempre aumentam ou reduzem o risco.
+A importância SHAP global representa a intensidade média da influência de cada variável na carteira analisada. Ela não indica, isoladamente, se valores maiores sempre aumentam ou reduzem o risco.
+
+### Explicabilidade Individual
+
+A API também disponibiliza explicabilidade individual para cada cliente, incluindo:
+
+- probabilidade e classificação de churn;
+- valor observado de cada variável;
+- contribuição SHAP de cada feature;
+- participação relativa de cada fator na explicação;
+- fatores que aumentam o risco;
+- fatores que reduzem o risco;
+- validação da reconstrução da probabilidade prevista;
+- identificação do modelo, versão, alias e Run ID utilizados.
 
 ## Estrutura do projeto
 
@@ -547,18 +564,17 @@ As credenciais presentes no Compose são exclusivas para desenvolvimento local. 
 
 ## Próxima etapa
 
-O próximo incremento implementará o **Cliente 360**, reunindo previsão, contexto financeiro e comportamental, explicabilidade individual e recomendação de retenção em uma única experiência.
+O próximo incremento implementará o **Cliente 360** como uma página independente, reunindo previsão, contexto financeiro e comportamental, explicabilidade individual e recomendação de retenção em uma única experiência.
 
 A sequência planejada é:
 
-1. reorganizar os nomes das páginas do dashboard;
-2. criar o endpoint de SHAP individual;
+1. reorganizar os nomes e responsabilidades das páginas do dashboard;
+2. separar o Cliente 360 da página Clientes em Risco;
 3. estruturar regras e catálogo de ações de retenção;
 4. gerar recomendações de IA com saída estruturada e validação;
-5. construir a página Cliente 360;
-6. reutilizar os mesmos serviços no Assistente FinPulse;
-7. automatizar alertas e campanhas com n8n;
-8. adicionar monitoramento de dados, drift e performance.
+5. reutilizar os mesmos serviços no Assistente FinPulse;
+6. automatizar alertas e campanhas com n8n;
+7. adicionar monitoramento de dados, drift e performance.
 
 O RAG será utilizado futuramente para políticas, catálogo de ofertas, critérios de elegibilidade e scripts de atendimento. Dados numéricos, previsão e SHAP continuarão sendo fornecidos diretamente como contexto estruturado.
 
