@@ -4,6 +4,7 @@ from textwrap import dedent
 
 import streamlit as st
 
+from time import perf_counter
 
 APP_DIR = Path(__file__).resolve().parents[1]
 
@@ -352,3 +353,231 @@ selected_customer_id = st.selectbox(
 st.session_state["selected_customer_id"] = (
     selected_customer_id
 )
+
+selected_customer = customer_lookup.loc[
+    selected_customer_id
+]
+
+risk_label = RISK_LABELS.get(
+    selected_customer["risk_band"],
+    selected_customer["risk_band"],
+)
+
+churn_prediction_label = (
+    "Churn previsto"
+    if int(selected_customer["churn_prediction"]) == 1
+    else "Permanência prevista"
+)
+
+st.markdown("## Diagnóstico operacional")
+
+with st.container(border=True):
+    customer_column, probability_column, risk_column, priority_column = (
+        st.columns(4)
+    )
+
+    with customer_column:
+        st.metric(
+            "Cliente",
+            selected_customer_id,
+        )
+
+    with probability_column:
+        st.metric(
+            "Probabilidade de churn",
+            format_percentage(
+                selected_customer["churn_probability"]
+            ),
+        )
+
+    with risk_column:
+        st.metric(
+            "Faixa de risco",
+            risk_label,
+        )
+
+    with priority_column:
+        st.metric(
+            "Prioridade operacional",
+            selected_customer["priority_label"],
+        )
+
+    st.caption(
+        f"Resultado do modelo: {churn_prediction_label}"
+    )
+
+    st.info(
+        f"**Ação recomendada:** "
+        f"{selected_customer['recommended_action']}"
+    )
+st.markdown("## Perfil do cliente")
+
+with st.container(border=True):
+    age_column, gender_column, marital_column, education_column = (
+        st.columns(4)
+    )
+
+with age_column:
+    age_value = format_feature_value(
+        "customer_age",
+        selected_customer["customer_age"],
+    )
+
+    st.metric(
+        "Idade",
+        f"{age_value} anos",
+    )
+
+    with gender_column:
+        st.metric(
+            "Gênero",
+            format_feature_value(
+                "gender",
+                selected_customer["gender"],
+            ),
+        )
+
+    with marital_column:
+        st.metric(
+            "Estado civil",
+            format_feature_value(
+                "marital_status",
+                selected_customer["marital_status"],
+            ),
+        )
+
+    with education_column:
+        st.metric(
+            "Escolaridade",
+            format_feature_value(
+                "education_level",
+                selected_customer["education_level"],
+            ),
+        )
+
+    dependent_column, income_column, card_column, relationship_column = (
+        st.columns(4)
+    )
+
+    with dependent_column:
+        st.metric(
+            "Dependentes",
+            format_feature_value(
+                "dependent_count",
+                selected_customer["dependent_count"],
+            ),
+        )
+
+    with income_column:
+        st.metric(
+            "Faixa de renda",
+            format_feature_value(
+                "income_category",
+                selected_customer["income_category"],
+            ),
+        )
+
+    with card_column:
+        st.metric(
+            "Categoria do cartão",
+            format_feature_value(
+                "card_category",
+                selected_customer["card_category"],
+            ),
+        )
+
+with relationship_column:
+    relationship_months = format_feature_value(
+        "months_on_book",
+        selected_customer["months_on_book"],
+    )
+
+    st.metric(
+        "Tempo de relacionamento",
+        f"{relationship_months} meses",
+    )
+st.markdown("## Relacionamento e comportamento")
+
+with st.container(border=True):
+    products_column, inactivity_column, contacts_column, transactions_column = (
+        st.columns(4)
+    )
+
+    with products_column:
+        st.metric(
+            "Produtos contratados",
+            format_feature_value(
+                "total_relationship_count",
+                selected_customer["total_relationship_count"],
+            ),
+        )
+
+    with inactivity_column:
+        st.metric(
+            "Meses de inatividade",
+            format_feature_value(
+                "months_inactive_last_12m",
+                selected_customer["months_inactive_last_12m"],
+            ),
+        )
+
+    with contacts_column:
+        st.metric(
+            "Contatos nos últimos 12 meses",
+            format_feature_value(
+                "contacts_count_last_12m",
+                selected_customer["contacts_count_last_12m"],
+            ),
+        )
+
+    with transactions_column:
+        st.metric(
+            "Total de transações",
+            format_feature_value(
+                "total_transaction_count",
+                selected_customer["total_transaction_count"],
+            ),
+        )
+
+st.markdown("## Situação financeira")
+
+with st.container(border=True):
+    limit_column, revolving_column, available_column, utilization_column = (
+        st.columns(4)
+    )
+
+    with limit_column:
+        st.metric(
+            "Limite de crédito",
+            format_feature_value(
+                "credit_limit",
+                selected_customer["credit_limit"],
+            ),
+        )
+
+    with revolving_column:
+        st.metric(
+            "Saldo rotativo",
+            format_feature_value(
+                "total_revolving_balance",
+                selected_customer["total_revolving_balance"],
+            ),
+        )
+
+    with available_column:
+        st.metric(
+            "Crédito disponível",
+            format_feature_value(
+                "average_open_to_buy",
+                selected_customer["average_open_to_buy"],
+            ),
+        )
+
+    with utilization_column:
+        st.metric(
+            "Utilização do limite",
+            format_feature_value(
+                "average_utilization_ratio",
+                selected_customer["average_utilization_ratio"],
+            ),
+        )
