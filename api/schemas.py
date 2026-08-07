@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from enum import Enum
-
+from api.retention_catalog import RetentionActionId
 
 
 class PredictionRequest(BaseModel):
@@ -188,7 +188,7 @@ class RetentionRecommendationContent(BaseModel):
     risk_interpretation: str
     main_risk_signals: list[str]
     protective_factors: list[str]
-    recommended_action: str
+    recommended_action_id: RetentionActionId
     approach_guidance: str
     suggested_message: str
     attention_points: list[str]
