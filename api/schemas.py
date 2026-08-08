@@ -1,7 +1,10 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from datetime import datetime
 from enum import Enum
-from api.retention_catalog import RetentionActionId
+from api.retention_catalog import (
+    RetentionActionId,
+    is_retention_action_allowed,
+)
 
 
 class PredictionRequest(BaseModel):
@@ -207,3 +210,18 @@ class CustomerRetentionRecommendationResponse(BaseModel):
     priority_label: str
     recommendation: RetentionRecommendationContent
     generation: RecommendationGenerationResponse
+
+    @model_validator(mode="after")
+    def validate_recommended_action_for_risk(
+        self,
+    ) -> "CustomerRetentionRecommendationResponse":
+        action_id = self.recommendation.recommended_action_id
+        risk_band = self.risk_band.value
+
+        if not is_retention_action_allowed(action_id, risk_band):
+            raise ValueError(
+                f"Retention action '{action_id.value}' is not allowed "
+                f"for risk band '{risk_band}'."
+            )
+
+        return self
