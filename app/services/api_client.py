@@ -35,12 +35,20 @@ def load_latest_scoring() -> dict[str, Any]:
         ) from exc
 
     try:
-        return json.loads(response_body)
+        result = json.loads(response_body)
 
     except json.JSONDecodeError as exc:
         raise RuntimeError(
             "A API retornou uma resposta inválida."
         ) from exc
+
+    if not isinstance(result, dict):
+        raise RuntimeError(
+            "A resposta do último scoring possui formato inesperado."
+        )
+
+    return result
+
 
 def load_confusion_matrix() -> dict[str, int]:
     request = Request(
@@ -94,7 +102,8 @@ def load_confusion_matrix() -> dict[str, int]:
         )
 
     return result
-    
+
+
 def load_global_explainability(
     sample_size: int = 500,
 ) -> dict[str, Any]:
@@ -140,6 +149,91 @@ def load_global_explainability(
     if not isinstance(result, dict):
         raise RuntimeError(
             "A resposta da explicabilidade possui formato inesperado."
+        )
+
+    return result
+
+
+def load_customer_explainability(
+    customer_id: str,
+) -> dict[str, Any]:
+    customer_id = str(customer_id).strip()
+
+    if not customer_id:
+        raise ValueError(
+            "O ID do cliente não pode estar vazio."
+        )
+
+    request = Request(
+        url=(
+            f"{API_BASE_URL}/customers/"
+            f"{customer_id}/explainability"
+        ),
+        headers={
+            "Accept": "application/json",
+        },
+        method="GET",
+    )
+
+    try:
+        with urlopen(request, timeout=30) as response:
+            response_body = response.read().decode("utf-8")
+
+    except HTTPError as exc:
+        if exc.code == 404:
+            raise RuntimeError(
+                f"O cliente {customer_id} não foi encontrado pela API."
+            ) from exc
+
+        raise RuntimeError(
+            "A API respondeu com erro ao consultar "
+            "a explicabilidade individual."
+        ) from exc
+
+    except URLError as exc:
+        raise RuntimeError(
+            "Não foi possível conectar à API do FinPulse."
+        ) from exc
+
+    try:
+        result = json.loads(response_body)
+
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "A API retornou uma explicabilidade individual inválida."
+        ) from exc
+
+    required_fields = {
+        "customer_id",
+        "churn_probability",
+        "churn_prediction",
+        "prediction_label",
+        "risk_band",
+        "features",
+        "risk_increasing_factors",
+        "risk_reducing_factors",
+    }
+
+    if (
+        not isinstance(result, dict)
+        or not required_fields.issubset(result)
+    ):
+        raise RuntimeError(
+            "A explicabilidade individual possui formato inesperado."
+        )
+
+    list_fields = {
+        "features",
+        "risk_increasing_factors",
+        "risk_reducing_factors",
+    }
+
+    if any(
+        not isinstance(result[field], list)
+        for field in list_fields
+    ):
+        raise RuntimeError(
+            "Os impactos SHAP possuem formato inesperado."
         )
 
     return result

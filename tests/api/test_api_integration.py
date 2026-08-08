@@ -1,8 +1,8 @@
+import math
 import os
 
 import httpx
 import pytest
-
 
 API_BASE_URL = os.getenv(
     "API_BASE_URL",
@@ -237,3 +237,118 @@ def test_manual_predict_accepts_customer_features(api_client):
     assert prediction["model_name"] == "finpulse-churn-catboost"
     assert prediction["model_version"] == 3
     assert prediction["model_alias"] == "champion"
+def test_customer_explainability_is_consistent(api_client):
+    customer_response = api_client.get(
+        f"/customers/{KNOWN_CUSTOMER_ID}"
+    )
+
+    explainability_response = api_client.get(
+        f"/customers/{KNOWN_CUSTOMER_ID}/explainability"
+    )
+
+    assert customer_response.status_code == 200
+    assert explainability_response.status_code == 200
+
+    customer = customer_response.json()
+    data = explainability_response.json()
+
+    assert data["churn_prediction"] == 1
+    assert data["prediction_label"] == "churn"
+    assert data["model_name"] == "finpulse-churn-catboost"
+    assert data["model_alias"] == "champion"
+    assert data["model_version"] == 3
+    assert data["run_id"]
+
+    assert data["input_feature_count"] == 19
+    assert len(data["features"]) == 19
+    assert data["transformed_feature_count"] >= 19
+
+    assert data["churn_probability"] == pytest.approx(
+        customer["prediction"]["churn_probability"],
+        abs=1e-9,
+    )
+
+    feature_names = {
+        feature["feature"]
+        for feature in data["features"]
+    }
+
+    assert feature_names == set(
+        customer["features"]
+    )
+
+    for feature in data["features"]:
+        feature_name = feature["feature"]
+
+        assert (
+            feature["value"]
+            == customer["features"][feature_name]
+        )
+        assert feature["absolute_shap"] == pytest.approx(
+            abs(feature["shap_value"]),
+            abs=1e-12,
+        )
+        assert 0.0 <= feature["importance_share"] <= 1.0
+        assert feature["impact_direction"] in {
+            "increases_risk",
+            "reduces_risk",
+            "neutral",
+        }
+
+    increasing_factors = data["risk_increasing_factors"]
+    reducing_factors = data["risk_reducing_factors"]
+
+    assert increasing_factors
+    assert reducing_factors
+
+    assert all(
+        factor["shap_value"] > 0
+        and factor["impact_direction"] == "increases_risk"
+        for factor in increasing_factors
+    )
+
+    assert all(
+        factor["shap_value"] < 0
+        and factor["impact_direction"] == "reduces_risk"
+        for factor in reducing_factors
+    )
+
+    increasing_names = {
+        factor["feature"]
+        for factor in increasing_factors
+    }
+
+    reducing_names = {
+        factor["feature"]
+        for factor in reducing_factors
+    }
+
+    assert increasing_names.isdisjoint(reducing_names)
+
+    total_importance_share = sum(
+        feature["importance_share"]
+        for feature in data["features"]
+    )
+
+    assert total_importance_share == pytest.approx(
+        1.0,
+        abs=1e-9,
+    )
+
+    reconstructed_raw_prediction = (
+        data["base_value"]
+        + sum(
+            feature["shap_value"]
+            for feature in data["features"]
+        )
+    )
+
+    reconstructed_probability = (
+        1.0
+        / (1.0 + math.exp(-reconstructed_raw_prediction))
+    )
+
+    assert reconstructed_probability == pytest.approx(
+        data["churn_probability"],
+        abs=1e-9,
+    )

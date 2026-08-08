@@ -129,18 +129,19 @@ class ModelService:
 
         return max(matches, key=len)
 
-    def get_global_explainability(
+    def _calculate_grouped_shap(
         self,
         model_input: pd.DataFrame,
-    ) -> dict[str, object]:
+    ) -> tuple[
+        pd.DataFrame,
+        list[str],
+        list[str],
+        np.ndarray,
+        np.ndarray,
+    ]:
         if self._explainability_pipeline is None:
             raise RuntimeError(
                 "Explainability pipeline is not loaded."
-            )
-
-        if self._model_version is None:
-            raise RuntimeError(
-                "Champion model metadata is not loaded."
             )
 
         if model_input.empty:
@@ -236,6 +237,31 @@ class ModelService:
             ]
         )
 
+        return (
+            ordered_input,
+            original_features,
+            transformed_features,
+            grouped_shap_values,
+            base_values,
+        )
+
+    def get_global_explainability(
+        self,
+        model_input: pd.DataFrame,
+    ) -> dict[str, object]:
+        if self._model_version is None:
+            raise RuntimeError(
+                "Champion model metadata is not loaded."
+            )
+
+        (
+            ordered_input,
+            original_features,
+            transformed_features,
+            grouped_shap_values,
+            base_values,
+        ) = self._calculate_grouped_shap(model_input)
+
         mean_absolute_shap = np.mean(
             np.abs(grouped_shap_values),
             axis=0,
@@ -293,6 +319,198 @@ class ModelService:
             ),
             "features": feature_importance,
         }
+        
+    def get_individual_explainability(
+        self,
+        model_input: pd.DataFrame,
+    ) -> dict[str, object]:
+        if self._model_version is None:
+            raise RuntimeError(
+                "Champion model metadata is not loaded."
+            )
+
+        if self._explainability_pipeline is None:
+            raise RuntimeError(
+                "Explainability pipeline is not loaded."
+            )
+
+        (
+            ordered_input,
+            original_features,
+            transformed_features,
+            grouped_shap_values,
+            base_values,
+        ) = self._calculate_grouped_shap(model_input)
+
+        if len(ordered_input) != 1:
+            raise ValueError(
+                "Individual explainability expects "
+                "exactly one customer."
+            )
+
+        probability_matrix = np.asarray(
+            self._explainability_pipeline.predict_proba(
+                ordered_input
+            )
+        )
+
+        model_classes = np.asarray(
+            self._explainability_pipeline.classes_
+        )
+
+        churn_class_positions = np.flatnonzero(
+            model_classes == 1
+        )
+
+        if churn_class_positions.size != 1:
+            raise RuntimeError(
+                "Could not identify the churn class "
+                "in the champion model."
+            )
+
+        churn_class_position = int(
+            churn_class_positions[0]
+        )
+
+        if (
+            probability_matrix.ndim != 2
+            or probability_matrix.shape[0] != 1
+            or churn_class_position
+            >= probability_matrix.shape[1]
+        ):
+            raise RuntimeError(
+                "Unexpected probability matrix format: "
+                f"{probability_matrix.shape}"
+            )
+
+        churn_probability = float(
+            probability_matrix[0, churn_class_position]
+        )
+
+        churn_prediction = self.predict(ordered_input)
+
+        customer_shap_values = grouped_shap_values[0]
+        base_value = float(base_values[0])
+
+        raw_prediction = float(
+            base_value + customer_shap_values.sum()
+        )
+
+        if raw_prediction >= 0:
+            shap_probability = float(
+                1.0 / (1.0 + np.exp(-raw_prediction))
+            )
+        else:
+            exp_raw_prediction = np.exp(raw_prediction)
+
+            shap_probability = float(
+                exp_raw_prediction
+                / (1.0 + exp_raw_prediction)
+            )
+
+        if not np.isclose(
+            shap_probability,
+            churn_probability,
+            rtol=1e-7,
+            atol=1e-9,
+        ):
+            raise RuntimeError(
+                "SHAP contributions do not reconstruct "
+                "the champion probability. "
+                f"SHAP probability={shap_probability}, "
+                f"model probability={churn_probability}."
+            )
+
+        total_absolute_shap = float(
+            np.abs(customer_shap_values).sum()
+        )
+
+        customer_values = ordered_input.iloc[0]
+        feature_impacts = []
+
+        for feature, shap_value in zip(
+            original_features,
+            customer_shap_values,
+        ):
+            shap_value = float(shap_value)
+            feature_value = customer_values[feature]
+
+            if isinstance(feature_value, np.generic):
+                feature_value = feature_value.item()
+
+            if shap_value > 1e-12:
+                impact_direction = "increases_risk"
+            elif shap_value < -1e-12:
+                impact_direction = "reduces_risk"
+            else:
+                impact_direction = "neutral"
+
+            absolute_shap = abs(shap_value)
+
+            importance_share = (
+                absolute_shap / total_absolute_shap
+                if total_absolute_shap > 0
+                else 0.0
+            )
+
+            feature_impacts.append(
+                {
+                    "feature": feature,
+                    "value": feature_value,
+                    "shap_value": shap_value,
+                    "absolute_shap": absolute_shap,
+                    "importance_share": importance_share,
+                    "impact_direction": impact_direction,
+                }
+            )
+
+        feature_impacts.sort(
+            key=lambda item: item["absolute_shap"],
+            reverse=True,
+        )
+
+        risk_increasing_factors = [
+            impact
+            for impact in feature_impacts
+            if impact["impact_direction"] == "increases_risk"
+        ]
+
+        risk_reducing_factors = [
+            impact
+            for impact in feature_impacts
+            if impact["impact_direction"] == "reduces_risk"
+        ]
+
+        return {
+            "churn_probability": churn_probability,
+            "churn_prediction": churn_prediction,
+            "prediction_label": (
+                "churn"
+                if churn_prediction == 1
+                else "no_churn"
+            ),
+            "model_name": settings.model_name,
+            "model_alias": settings.model_alias,
+            "model_version": int(
+                self._model_version.version
+            ),
+            "run_id": self._model_version.run_id,
+            "input_feature_count": len(
+                original_features
+            ),
+            "transformed_feature_count": len(
+                transformed_features
+            ),
+            "base_value": base_value,
+            "features": feature_impacts,
+            "risk_increasing_factors": (
+                risk_increasing_factors
+            ),
+            "risk_reducing_factors": (
+                risk_reducing_factors
+            ),
+        }
+    
     def get_metrics(self) -> dict[str, float | None]:
         return {
             "roc_auc": self._run_metrics.get(
@@ -430,3 +648,4 @@ class ModelService:
             "source": self._model_version.source,
             "model_uri": settings.model_uri,
         }
+    

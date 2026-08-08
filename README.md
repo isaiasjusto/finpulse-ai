@@ -1,6 +1,6 @@
 # FinPulse AI
 
-### Plataforma end-to-end de dados, Machine Learning e MLOps para previsão de churn bancário
+### Plataforma end-to-end de dados, Machine Learning e MLOps para previsão de churn e priorização de retenção bancária
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
@@ -8,16 +8,17 @@
 [![MLflow](https://img.shields.io/badge/MLflow-Tracking_%26_Registry-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![MinIO](https://img.shields.io/badge/MinIO-S3_Compatible-C72E49?logo=minio&logoColor=white)](https://min.io/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Model_Serving-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Analytics_Dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Status](https://img.shields.io/badge/status-API_validada-16A085)](#status-do-projeto)
+[![Status](https://img.shields.io/badge/status-Camada_analitica_validada-16A085)](#status-do-projeto)
 
 ![Solução técnica do FinPulse AI para previsão de churn](docs/architecture/finpulse-ai-solution-overview.png)
 
 ## Visão geral
 
-O **FinPulse AI** transforma dados de clientes de cartão de crédito em uma solução rastreável de previsão de churn. O projeto cobre o fluxo completo entre armazenamento, qualidade, transformação analítica, experimentação, validação, registro e serving do modelo.
+O **FinPulse AI** transforma dados de clientes de cartão de crédito em uma solução rastreável de previsão de churn e apoio à retenção. O projeto cobre o fluxo completo entre armazenamento, qualidade, transformação analítica, treinamento, validação, registro, serving e consumo das previsões em um dashboard operacional.
 
-O objetivo é estimar a probabilidade de um cliente encerrar o relacionamento e disponibilizar esse sinal para ações de retenção, alertas e dashboards.
+Além de estimar a probabilidade de cancelamento, a plataforma organiza a carteira por faixa de risco e prioridade, permite analisar clientes críticos e apresenta métricas, matriz de confusão, explicabilidade global e individual com SHAP e rastreabilidade do modelo champion.
 
 O projeto foi construído como portfólio prático de:
 
@@ -26,11 +27,13 @@ O projeto foi construído como portfólio prático de:
 - Ciência de Dados e Machine Learning;
 - MLOps com MLflow e MinIO;
 - model serving com FastAPI;
+- explicabilidade de modelos com SHAP;
+- aplicações analíticas com Streamlit;
 - arquitetura local reproduzível com Docker Compose.
 
 ## Resultado atual
 
-O CatBoost foi selecionado como modelo campeão após benchmark de dez algoritmos, análise de overfitting e validação cruzada.
+O CatBoost foi selecionado como modelo champion após benchmark de dez algoritmos, análise de overfitting, validação cruzada e avaliação em teste reservado.
 
 | Métrica no teste reservado | Resultado |
 |---|---:|
@@ -53,6 +56,18 @@ Matriz de confusão no threshold oficial:
 
 Essas métricas representam uma única avaliação no conjunto de teste reservado após a escolha do algoritmo e dos thresholds na validação.
 
+A solução operacional atualmente entrega:
+
+- modelo `finpulse-churn-catboost`, versão 3, registrado com alias `champion`;
+- batch scoring dos 10.127 clientes;
+- previsões persistidas no PostgreSQL e snapshot em Parquet no MinIO;
+- FastAPI `0.5.0` com endpoints de scoring, clientes, avaliação e explicabilidade;
+- dashboard multipágina em Streamlit;
+- priorização de retenção por risco e relevância de negócio;
+- explicabilidade global com SHAP para as 19 features originais;
+- explicabilidade individual com separação dos fatores que aumentam e reduzem o risco;
+- rastreabilidade entre treinamento, versão do modelo e execução do scoring.
+
 ## Problema de negócio
 
 Uma instituição financeira precisa priorizar clientes para ações de retenção sem abordar toda a carteira indiscriminadamente.
@@ -61,14 +76,18 @@ O modelo responde:
 
 > Qual é a probabilidade de churn deste cliente e em qual faixa de risco ele deve ser classificado?
 
+A camada analítica amplia essa resposta:
+
+> Quais clientes devem ser priorizados, quais sinais mais influenciam o modelo e qual execução produziu o resultado apresentado?
+
 Foram definidos dois pontos de operação:
 
 | Uso | Threshold aproximado | Objetivo |
 |---|---:|---|
-| Watchlist | `0,2075` | aumentar cobertura de clientes potencialmente em risco |
+| Watchlist | `0,2075` | aumentar a cobertura de clientes potencialmente em risco |
 | Classificação oficial | `0,4762` | equilibrar precision e recall pelo melhor F1 na validação |
 
-As faixas planejadas para consumo são:
+As faixas utilizadas no consumo das previsões são:
 
 ```text
 Low     probability < 0.2075
@@ -106,32 +125,33 @@ MinIO / raw
         ↓
 PostgreSQL / raw.bank_churners
         ↓
-dbt / staging.stg_bank_churners
-        ↓
-dbt / marts.mart_customer_churn_model
+dbt / staging e marts
         ↓
 Jupyter / EDA, benchmark e validação
         ↓
 MLflow Tracking + Model Registry
         ↓
-MinIO / artefatos do modelo
+Modelo champion + batch scoring
         ↓
-FastAPI / champion em memória
+PostgreSQL / previsões e marts analíticos
         ↓
-Dashboard e assistente de IA
+FastAPI / serving, avaliação e explicabilidade
+        ↓
+Streamlit / análise e priorização de retenção
 ```
 
 Responsabilidades por componente:
 
 | Componente | Responsabilidade |
 |---|---|
-| MinIO | dado bruto e artefatos S3-compatible |
-| PostgreSQL | dados operacionais, mart de previsões e backend do MLflow |
-| dbt | staging, mart, documentação e testes de qualidade |
-| Jupyter | ingestão, análise, treinamento e validação |
-| MLflow | experimentos, métricas, parâmetros, lineage e Registry |
-| FastAPI | serving do champion, consultas operacionais e contrato HTTP |
-| Docker Compose | reprodução e comunicação entre os serviços |
+| MinIO | dado bruto, artefatos do MLflow e snapshots de scoring |
+| PostgreSQL | dados operacionais, previsões, marts analíticos e backend do MLflow |
+| dbt | staging, marts, documentação e testes de qualidade |
+| Jupyter | ingestão, análise, treinamento, validação e scoring |
+| MLflow | experimentos, métricas, parâmetros, lineage e Model Registry |
+| FastAPI | serving do champion, consultas operacionais, avaliação e SHAP global e individual |
+| Streamlit | visualização executiva, operação de retenção e governança do modelo |
+| Docker Compose | reprodução, healthchecks e comunicação entre os serviços |
 
 ## Camadas de dados
 
@@ -145,7 +165,7 @@ Responsabilidades por componente:
 
 ### Mart de Machine Learning
 
-`marts.mart_customer_churn_model` entrega 10.127 clientes e 21 colunas:
+`marts.mart_customer_churn_model` entrega 10.127 clientes com:
 
 - `customer_id`;
 - `churn_flag`;
@@ -153,6 +173,18 @@ Responsabilidades por componente:
 - nenhuma coluna direta de leakage.
 
 As contagens de clientes e churn foram reconciliadas entre MinIO, raw, staging e mart.
+
+### Previsões e consumo analítico
+
+As previsões do champion e os indicadores utilizados pelo dashboard são organizados em marts dedicados, incluindo:
+
+- `marts.mart_customer_churn_predictions`;
+- `marts.mart_churn_dashboard_overview`;
+- `marts.mart_churn_risk_distribution`;
+- `marts.mart_churn_retention_priority`;
+- `marts.mart_churn_customer_priority`.
+
+Essa separação mantém o dado de modelagem independente das visões voltadas ao consumo operacional.
 
 ## Metodologia de Machine Learning
 
@@ -192,9 +224,7 @@ Também foram realizados:
 - análise de precision, recall e F1 por threshold;
 - avaliação final em conjunto de teste congelado.
 
-As variáveis com maior importância foram `total_transaction_count` e `total_transaction_amount`, seguidas por sinais de relacionamento, saldo rotativo e mudança de comportamento.
-
-## MLOps
+## MLOps e scoring
 
 O experimento final é rastreado no MLflow com:
 
@@ -228,24 +258,16 @@ O batch scoring processou os 10.127 clientes:
 | Medium | 174 | 0,3146 |
 | High | 1.599 | 0,9205 |
 
-As previsões foram gravadas em:
-
-```text
-marts.mart_customer_churn_predictions
-```
-
-Um snapshot completo em Parquet foi armazenado no bucket `curated`, enquanto a execução foi registrada no experimento `finpulse-churn-scoring`.
+As previsões foram gravadas em `marts.mart_customer_churn_predictions`. Um snapshot completo em Parquet foi armazenado no bucket `curated`, enquanto a execução foi registrada no experimento `finpulse-churn-scoring`.
 
 A validação final cruzou PostgreSQL, MLflow e MinIO, confirmando:
 
 - 10.127 clientes únicos;
 - versão 3 do modelo;
 - alias `champion`;
-- Run ID do scoring;
+- Run ID do treinamento e Run ID do scoring;
 - integridade do snapshot por SHA-256;
 - correspondência entre o mart e o arquivo recuperado do MinIO.
-
-O PostgreSQL armazena os dados operacionais e os metadados do MLflow. O MinIO armazena os artefatos dos experimentos no bucket `mlflow` e os snapshots de scoring no bucket `curated`.
 
 ## API e model serving
 
@@ -255,49 +277,96 @@ A FastAPI carrega uma única vez, durante a inicialização, o modelo resolvido 
 models:/finpulse-churn-catboost@champion
 ```
 
-O artefato é recuperado pelo MLflow a partir do MinIO e mantido em memória para as inferências seguintes. Dessa forma, cada requisição de previsão não precisa baixar o modelo novamente.
-
-Os dados operacionais são consultados no PostgreSQL por meio do SQLAlchemy. O dashboard e o futuro assistente de IA utilizarão a API como contrato de acesso, sem conexão direta com o banco ou com o Model Registry.
+O artefato é recuperado pelo MLflow a partir do MinIO e mantido em memória para as inferências seguintes. Os dados operacionais são consultados no PostgreSQL por meio do SQLAlchemy.
 
 ### Endpoints
 
 | Método | Rota | Responsabilidade |
 |---|---|---|
+| `GET` | `/` | identifica o serviço e direciona para a documentação |
 | `GET` | `/health` | verifica API, champion e PostgreSQL |
 | `GET` | `/model-info` | retorna versão, alias, Run ID e origem do modelo |
+| `GET` | `/model-explainability/global` | calcula a importância global com SHAP |
+| `GET` | `/model-evaluation/confusion-matrix` | retorna a matriz de confusão do teste reservado |
 | `GET` | `/portfolio/summary` | entrega os indicadores consolidados da carteira |
+| `GET` | `/scoring/latest` | retorna o último scoring, modelo e métricas associadas |
 | `GET` | `/customers` | lista clientes com filtro de risco e paginação |
 | `GET` | `/customers/{customer_id}` | retorna features e previsão armazenada do cliente |
+| `POST` | `/customers/{customer_id}/predict` | executa nova inferência e compara com o scoring armazenado |
 | `POST` | `/predict` | executa inferência a partir das 19 features |
-| `POST` | `/customers/{customer_id}/predict` | busca o cliente, executa nova inferência e compara com o scoring armazenado |
+| `GET` | `/customers/{customer_id}/explainability` | Retorna a explicabilidade SHAP individual do cliente |
 
-A documentação OpenAPI é gerada automaticamente e pode ser explorada em:
+A documentação OpenAPI pode ser explorada em:
 
 ```text
 http://localhost:8000/docs
 ```
 
-### Testes automatizados
+### Validação de integração
 
-Uma suíte black-box com `pytest` e `httpx` executa requisições HTTP reais contra a API em um contêiner temporário. Os nove cenários cobrem:
+O fluxo foi validado de ponta a ponta com:
 
-- saúde dos componentes;
-- resolução do alias `champion`;
-- consistência do resumo da carteira;
-- consulta de cliente existente;
-- resposta `404` para cliente inexistente;
-- filtro e ordenação por faixa de risco;
-- resposta `422` para filtro inválido;
-- predição por identificador;
-- predição com as 19 features.
+- API `0.5.0` saudável;
+- modelo `finpulse-churn-catboost` versão 3 e alias `champion` carregado;
+- PostgreSQL conectado;
+- 10.127 clientes identificados no último scoring;
+- matriz de confusão reconstruída para 2.026 observações;
+- SHAP global calculado sobre amostra de 500 clientes;
+- nova inferência individual consistente com a previsão armazenada.
 
-Execute a suíte com:
+Uma suíte black-box com `pytest` e `httpx` executa requisições HTTP reais contra a API em um contêiner temporário:
 
 ```bash
 docker compose --profile test run --rm api-tests
 ```
 
-O contêiner de testes é removido após a execução, enquanto a imagem permanece disponível para novas validações.
+## Dashboard analítico
+
+O Streamlit transforma previsões e métricas técnicas em uma experiência de análise e priorização. A aplicação combina os marts analíticos do PostgreSQL com endpoints da FastAPI para scoring, avaliação e explicabilidade.
+
+### Visão Executiva
+
+- ROC AUC, Balanced Accuracy, F1-score e Recall do champion;
+- distribuição da carteira entre baixo, médio e alto risco;
+- quantidade e participação de clientes por faixa;
+- probabilidade média e volume transacionado por segmento;
+- matriz de prioridade de retenção;
+- ações sugeridas para cada segmento.
+
+### Clientes em Risco
+
+- ranking operacional dos clientes priorizados;
+- probabilidade individual de churn;
+- faixa de risco e prioridade de negócio;
+- filtros, ordenação e paginação;
+- informações financeiras e comportamentais;
+- ações sugeridas para contato e retenção.
+
+### Análise do Modelo
+
+A área de análise reúne:
+
+- identificação e métricas do modelo champion;
+- matriz de confusão;
+- explicabilidade global com SHAP;
+- tradução das features para linguagem de negócio;
+- ranking das variáveis mais influentes;
+- rastreabilidade por modelo, versão, Run ID e data do scoring.
+
+A importância SHAP global representa a intensidade média da influência de cada variável na carteira analisada. Ela não indica, isoladamente, se valores maiores sempre aumentam ou reduzem o risco.
+
+### Explicabilidade Individual
+
+A API também disponibiliza explicabilidade individual para cada cliente, incluindo:
+
+- probabilidade e classificação de churn;
+- valor observado de cada variável;
+- contribuição SHAP de cada feature;
+- participação relativa de cada fator na explicação;
+- fatores que aumentam o risco;
+- fatores que reduzem o risco;
+- validação da reconstrução da probabilidade prevista;
+- identificação do modelo, versão, alias e Run ID utilizados.
 
 ## Estrutura do projeto
 
@@ -310,6 +379,14 @@ finpulse-ai/
 │   ├── customer_repository.py
 │   ├── portfolio_repository.py
 │   └── schemas.py
+├── app/
+│   ├── pages/
+│   │   ├── 1_Visao_Geral.py
+│   │   ├── 2_Clientes_em_Risco.py
+│   │   └── 5_Analise_do_Modelo.py
+│   ├── services/
+│   ├── styles/
+│   └── streamlit_app.py
 ├── data/
 │   ├── raw/
 │   ├── processed/
@@ -323,13 +400,14 @@ finpulse-ai/
 │   ├── api/
 │   ├── jupyter/
 │   ├── mlflow/
-│   └── postgres/init/
+│   ├── postgres/init/
+│   └── streamlit/
 ├── docs/architecture/
 ├── notebooks/
 │   ├── 00_churn_data_ingestion.ipynb
 │   ├── 01_churn_dashboard_features.ipynb
 │   ├── 02_churn_model_training.ipynb
-│   ├── 03_churn_model_registry_validation.ipynb
+│   └── 03_churn_model_registry_validation.ipynb
 ├── models/
 ├── reports/
 ├── src/
@@ -366,16 +444,17 @@ Serviços locais:
 
 | Serviço | URL ou porta |
 |---|---|
-| JupyterLab | `http://localhost:8888` |
+| Streamlit | `http://localhost:8501` |
+| FastAPI | `http://localhost:8000` |
+| Swagger UI | `http://localhost:8000/docs` |
 | MLflow | `http://localhost:5000` |
+| JupyterLab | `http://localhost:8888` |
 | pgAdmin | `http://localhost:5050` |
 | MinIO API | `http://localhost:9000` |
 | MinIO Console | `http://localhost:9001` |
 | PostgreSQL | `localhost:5433` |
-| FastAPI | `http://localhost:8000` |
-| Swagger UI | `http://localhost:8000/docs` |
 
-Na primeira inicialização, o Compose prepara o banco do MLflow, o usuário do dbt e os buckets `raw`, `processed`, `curated`, `reports` e `mlflow`. Os modelos registrados e seus artefatos são armazenados pelo MLflow no bucket `mlflow`; portanto, não é necessário manter um bucket separado chamado `models`.
+Na primeira inicialização, o Compose prepara o banco do MLflow, o usuário do dbt e os buckets `raw`, `processed`, `curated`, `reports` e `mlflow`.
 
 ### 3. Disponibilize o dado bruto
 
@@ -391,14 +470,10 @@ Depois execute `00_churn_data_ingestion.ipynb` para ingestão e validação das 
 
 O projeto foi validado com `dbt-core 1.11.12` e `dbt-postgres 1.10.2`.
 
-Configure o profile `finpulse_dbt` e execute:
-
 ```bash
 cd dbt/finpulse_dbt
 dbt build
 ```
-
-Em ambientes onde o executável `dbt` é bloqueado, a CLI também pode ser chamada pelo `dbtRunner` em Python.
 
 ### 5. Execute os notebooks
 
@@ -409,13 +484,18 @@ Em ambientes onde o executável `dbt` é bloqueado, a CLI também pode ser chama
 03_churn_model_registry_validation.ipynb
 ```
 
-### 6. Valide a API
-
-Com os serviços saudáveis, consulte:
+### 6. Valide a API e o dashboard
 
 ```bash
 curl http://localhost:8000/health
 curl http://localhost:8000/model-info
+curl http://localhost:8000/scoring/latest
+```
+
+Abra o dashboard em:
+
+```text
+http://localhost:8501
 ```
 
 Execute os testes de integração:
@@ -431,18 +511,20 @@ docker compose --profile test run --rm api-tests
 - MLflow, CatBoost, XGBoost e LightGBM versionados;
 - volumes persistentes para PostgreSQL e MinIO;
 - inicialização automática de banco, usuário, schemas e buckets;
-- healthchecks para PostgreSQL, MinIO, MLflow e FastAPI;
+- healthchecks para PostgreSQL, MinIO, MLflow, FastAPI e Streamlit;
 - testes de comunicação entre Jupyter, MLflow e MinIO;
-- suíte de integração black-box para os endpoints da API.
+- suíte de integração black-box para os endpoints da API;
+- rastreabilidade entre modelo registrado, scoring e dados apresentados.
 
 As credenciais presentes no Compose são exclusivas para desenvolvimento local. Um ambiente produtivo deve utilizar secrets e usuários com privilégios mínimos.
 
 ## Limitações
 
 - O dataset é público e educacional, não representa uma carteira bancária em produção.
-- Não existe timestamp de referência para realizar validação temporal; por isso o split é estratificado.
+- Não existe timestamp de referência para validação temporal; por isso o split é estratificado.
 - As métricas refletem este dataset e não devem ser generalizadas para outra população sem nova validação.
 - A alta capacidade preditiva depende principalmente de variáveis transacionais fortemente associadas ao target.
+- As explicações SHAP representam associações aprendidas pelo modelo e não devem ser interpretadas como relações causais.
 - O projeto não representa recomendação financeira, score regulatório ou decisão automática de crédito.
 
 ## Status do projeto
@@ -464,31 +546,38 @@ As credenciais presentes no Compose são exclusivas para desenvolvimento local. 
 - [x] Snapshot Parquet no MinIO
 - [x] Execução do scoring registrada no MLflow
 - [x] Validação cruzada entre PostgreSQL, MLflow e MinIO
-- [x] API com FastAPI
-- [x] Serving do modelo `champion`
+- [x] API com FastAPI e serving do champion
 - [x] Consultas de carteira e clientes pelo PostgreSQL
 - [x] Healthcheck de API, modelo e banco
 - [x] Testes automatizados de integração da API
-- [ ] Dashboard com Streamlit
-- [ ] Explicabilidade com SHAP
-- [ ] Assistente de IA
+- [x] Dashboard multipágina com Streamlit
+- [x] Visão executiva e distribuição de risco
+- [x] Operação de retenção e clientes priorizados
+- [x] Matriz de confusão no dashboard
+- [x] Explicabilidade global com SHAP
+- [x] Rastreabilidade de modelo e scoring
+- [x] Explicabilidade individual com SHAP
+- [ ] Cliente 360 como página independente
+- [ ] Recomendações inteligentes de retenção
+- [ ] Assistente FinPulse com chat
 - [ ] Alertas e automações com n8n
 - [ ] Monitoramento de dados, drift e performance
 
 ## Próxima etapa
 
-O próximo incremento implementará um dashboard multipágina com Streamlit consumindo exclusivamente a FastAPI.
+O próximo incremento implementará o **Cliente 360** como uma página independente, reunindo previsão, contexto financeiro e comportamental, explicabilidade individual e recomendação de retenção em uma única experiência.
 
-As primeiras páginas deverão oferecer:
+A sequência planejada é:
 
-- visão executiva da carteira;
-- distribuição das faixas de risco;
-- lista filtrável e paginada de clientes;
-- visão Customer 360;
-- simulador de previsão individual;
-- saúde dos serviços e governança do modelo.
+1. reorganizar os nomes e responsabilidades das páginas do dashboard;
+2. separar o Cliente 360 da página Clientes em Risco;
+3. estruturar regras e catálogo de ações de retenção;
+4. gerar recomendações de IA com saída estruturada e validação;
+5. reutilizar os mesmos serviços no Assistente FinPulse;
+6. automatizar alertas e campanhas com n8n;
+7. adicionar monitoramento de dados, drift e performance.
 
-Após a consolidação da camada visual, o projeto receberá explicabilidade com SHAP e um assistente de IA que utilizará a API como camada segura de acesso aos dados e previsões.
+O RAG será utilizado futuramente para políticas, catálogo de ofertas, critérios de elegibilidade e scripts de atendimento. Dados numéricos, previsão e SHAP continuarão sendo fornecidos diretamente como contexto estruturado.
 
 ## Autor
 

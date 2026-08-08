@@ -1,6 +1,11 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from datetime import datetime
 from enum import Enum
+from api.retention_catalog import (
+    RetentionActionId,
+    is_retention_action_allowed,
+)
+
 
 class PredictionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -149,3 +154,74 @@ class ConfusionMatrixResponse(BaseModel):
     false_negative: int
     true_positive: int
     sample_size: int
+
+class ImpactDirection(str, Enum):
+    increases_risk = "increases_risk"
+    reduces_risk = "reduces_risk"
+    neutral = "neutral"
+
+
+class IndividualFeatureImpactResponse(BaseModel):
+    feature: str
+    value: str | int | float
+    shap_value: float
+    absolute_shap: float
+    importance_share: float
+    impact_direction: ImpactDirection
+
+class IndividualExplainabilityResponse(BaseModel):
+    customer_id: int
+    churn_probability: float
+    churn_prediction: int
+    prediction_label: str
+    risk_band: RiskBand
+    model_name: str
+    model_alias: str
+    model_version: int
+    run_id: str
+    input_feature_count: int
+    transformed_feature_count: int
+    base_value: float
+    features: list[IndividualFeatureImpactResponse]
+    risk_increasing_factors: list[IndividualFeatureImpactResponse]
+    risk_reducing_factors: list[IndividualFeatureImpactResponse]
+
+class RetentionRecommendationContent(BaseModel):
+    case_summary: str
+    risk_interpretation: str
+    main_risk_signals: list[str]
+    protective_factors: list[str]
+    recommended_action_id: RetentionActionId
+    approach_guidance: str
+    suggested_message: str
+    attention_points: list[str]
+
+
+class RecommendationGenerationResponse(BaseModel):
+    provider: str
+    model: str
+    generated_at: datetime
+
+
+class CustomerRetentionRecommendationResponse(BaseModel):
+    customer_id: int
+    churn_probability: float
+    risk_band: RiskBand
+    priority_label: str
+    recommendation: RetentionRecommendationContent
+    generation: RecommendationGenerationResponse
+
+    @model_validator(mode="after")
+    def validate_recommended_action_for_risk(
+        self,
+    ) -> "CustomerRetentionRecommendationResponse":
+        action_id = self.recommendation.recommended_action_id
+        risk_band = self.risk_band.value
+
+        if not is_retention_action_allowed(action_id, risk_band):
+            raise ValueError(
+                f"Retention action '{action_id.value}' is not allowed "
+                f"for risk band '{risk_band}'."
+            )
+
+        return self
