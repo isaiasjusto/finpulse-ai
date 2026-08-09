@@ -12,3 +12,5 @@ catboost==1.2.10
 
 sqlalchemy==2.0.22
 psycopg2-binary==2.9.12
+
+ollama==0.6.2
