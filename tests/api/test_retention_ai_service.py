@@ -135,6 +135,47 @@ class TestRetentionAIService(IsolatedAsyncioTestCase):
             "priority_retention_contact",
             call_kwargs["messages"][1]["content"],
         )
+        
+        self.assertEqual(
+            result.case_summary,
+            (
+                "Cliente classificado na faixa de risco High, "
+                "com probabilidade de churn de 91.00%."
+            ),
+        )
+
+        self.assertEqual(
+            result.main_risk_signals,
+            [
+                (
+                    "A característica 'total_transaction_count' contribuiu "
+                    "para aumentar a previsão de churn do modelo."
+                )
+            ],
+        )
+
+        self.assertEqual(
+            result.protective_factors,
+            [
+                (
+                    "A característica 'months_on_book' contribuiu para reduzir "
+                    "a previsão de churn do modelo."
+                )
+            ],
+        )
+
+        self.assertEqual(
+            result.attention_points,
+            [
+                (
+                    "A recomendação deve ser revisada por uma pessoa "
+                    "antes de qualquer ação."
+                ),
+                (
+                    "As contribuições SHAP não representam relações causais."
+                ),
+            ],
+        )
 
     async def test_generate_recommendation_rejects_invalid_action(self):
         explainability = self._build_explainability()

@@ -18,6 +18,29 @@ class RetentionAIService:
         )
 
     @staticmethod
+    def _build_system_content(
+        explainability: IndividualExplainabilityResponse,
+    ) -> dict[str, object]:
+        probability = explainability.churn_probability
+        risk_band = explainability.risk_band.value
+
+        return {
+            "case_summary": (
+                f"Cliente classificado na faixa de risco {risk_band}, "
+                f"com probabilidade de churn de {probability:.2%}."
+            ),
+            "risk_interpretation": (
+                "Os fatores apresentados representam contribuições SHAP "
+                "para a previsão do modelo e não devem ser interpretados "
+                "como relações causais."
+            ),
+            "attention_points": [
+                "A recomendação deve ser revisada por uma pessoa antes de qualquer ação.",
+                "As contribuições SHAP não representam relações causais.",
+            ],
+        }
+    
+    @staticmethod
     def _build_evidence_lists(
         explainability: IndividualExplainabilityResponse,
     ) -> tuple[list[str], list[str]]:
@@ -46,33 +69,11 @@ class RetentionAIService:
         priority_label: str,
         allowed_actions: list[RetentionAction],
     ) -> list[dict[str, str]]:
-        risk_factors = [
-            {
-                "feature": factor.feature,
-                "observed_value": factor.value,
-                "model_effect": "increases_risk",
-                "evidence_statement": (
-                    f"The feature '{factor.feature}' contributed to increasing "
-                    "the model prediction for churn."
-                ),
-                "qualitative_value_interpretation": None,
-            }
-            for factor in explainability.risk_increasing_factors[:5]
-        ]
-
-        protective_factors = [
-            {
-                "feature": factor.feature,
-                "observed_value": factor.value,
-                "model_effect": "reduces_risk",
-                "evidence_statement": (
-                    f"The feature '{factor.feature}' contributed to reducing "
-                    "the model prediction for churn."
-                ),
-                "qualitative_value_interpretation": None,
-            }
-            for factor in explainability.risk_reducing_factors[:5]
-        ]
+        risk_signals, protective_factors = (
+    RetentionAIService._build_evidence_lists(
+        explainability
+    )
+)
 
         actions = [
             {
@@ -87,7 +88,7 @@ class RetentionAIService:
             "churn_probability": explainability.churn_probability,
             "risk_band": explainability.risk_band.value,
             "priority_label": priority_label,
-            "main_risk_factors": risk_factors,
+            "main_risk_signals": risk_signals,
             "protective_factors": protective_factors,
             "allowed_retention_actions": actions,
         }
@@ -168,8 +169,26 @@ class RetentionAIService:
                     },
         )
 
-        return RetentionRecommendationContent.model_validate_json(
+        recommendation = RetentionRecommendationContent.model_validate_json(
             response.message.content
+        )
+
+        risk_signals, protective_factors = self._build_evidence_lists(
+            explainability
+        )
+
+        system_content = self._build_system_content(
+            explainability
+        )
+
+        return recommendation.model_copy(
+            update={
+                "case_summary": system_content["case_summary"],
+                "risk_interpretation": system_content["risk_interpretation"],
+                "main_risk_signals": risk_signals,
+                "protective_factors": protective_factors,
+                "attention_points": system_content["attention_points"],
+            }
         )
 
     async def close(self) -> None:
