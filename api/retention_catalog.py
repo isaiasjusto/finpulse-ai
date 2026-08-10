@@ -76,7 +76,7 @@ def get_allowed_retention_actions(
         for action in RETENTION_ACTION_CATALOG.values()
         if risk_band in action.allowed_risk_bands
     ]
-    
+
 def is_retention_action_allowed(
     action_id: RetentionActionId,
     risk_band: str,
@@ -87,3 +87,8 @@ def is_retention_action_allowed(
     }
 
     return action_id in allowed_action_ids
+
+def get_retention_action(
+            action_id: RetentionActionId,
+        ) -> RetentionAction:
+            return RETENTION_ACTION_CATALOG[action_id]

@@ -1,14 +1,29 @@
 import json
 
+import httpx
 from ollama import AsyncClient
 
 from api.config import settings
-from api.retention_catalog import RetentionAction
+from api.retention_catalog import (
+    RetentionAction,
+    get_retention_action,
+    is_retention_action_allowed,
+)
 from api.schemas import (
     IndividualExplainabilityResponse,
     RetentionRecommendationContent,
 )
 
+from pydantic import ValidationError
+
+class RetentionAIUnavailableError(RuntimeError):
+    """Raised when the local retention LLM service is unavailable."""
+
+class RetentionAITimeoutError(RuntimeError):
+    """Raised when the local retention LLM exceeds its timeout."""
+
+class RetentionAIInvalidResponseError(RuntimeError):
+    """Raised when the local retention LLM returns an invalid response."""
 
 class RetentionAIService:
     def __init__(self) -> None:
@@ -39,7 +54,7 @@ class RetentionAIService:
                 "As contribuições SHAP não representam relações causais.",
             ],
         }
-    
+
     @staticmethod
     def _build_evidence_lists(
         explainability: IndividualExplainabilityResponse,
@@ -160,17 +175,59 @@ class RetentionAIService:
             allowed_actions=allowed_actions,
         )
 
-        response = await self._client.chat(
-            model=settings.ollama_model,
-            messages=messages,
-            format=RetentionRecommendationContent.model_json_schema(),
-            options={
-                        "temperature": 0,
-                    },
-        )
+        try:
+            response = await self._client.chat(
+                model=settings.ollama_model,
+                messages=messages,
+                format=RetentionRecommendationContent.model_json_schema(),
+                options={
+                    "temperature": 0,
+                },
+            )
+        except httpx.TimeoutException as exc:
+            raise RetentionAITimeoutError(
+                "Local retention AI service timed out."
+            ) from exc
+        except ConnectionError as exc:
+            raise RetentionAIUnavailableError(
+                "Local retention AI service is unavailable."
+            ) from exc
 
-        recommendation = RetentionRecommendationContent.model_validate_json(
-            response.message.content
+        try:
+            recommendation = RetentionRecommendationContent.model_validate_json(
+                response.message.content
+            )
+        except ValidationError as exc:
+            errors = exc.errors()
+
+            is_only_invalid_action = all(
+                error.get("loc") == ("recommended_action_id",)
+                and error.get("type") == "enum"
+                for error in errors
+            )
+
+            if is_only_invalid_action:
+                raise
+
+            raise RetentionAIInvalidResponseError(
+                "Local retention AI returned an invalid structured response."
+            ) from exc
+
+        if not is_retention_action_allowed(
+            recommendation.recommended_action_id,
+            explainability.risk_band.value,
+        ):
+            raise ValueError(
+                (
+                    f"Retention action "
+                    f"'{recommendation.recommended_action_id.value}' "
+                    f"is not allowed for risk band "
+                    f"'{explainability.risk_band.value}'."
+                )
+            )
+
+        selected_action = get_retention_action(
+            recommendation.recommended_action_id
         )
 
         risk_signals, protective_factors = self._build_evidence_lists(
@@ -188,8 +245,10 @@ class RetentionAIService:
                 "main_risk_signals": risk_signals,
                 "protective_factors": protective_factors,
                 "attention_points": system_content["attention_points"],
+                "approach_guidance": selected_action.description,
             }
         )
+
 
     async def close(self) -> None:
         await self._client.close()
