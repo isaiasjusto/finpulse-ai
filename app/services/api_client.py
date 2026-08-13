@@ -237,3 +237,133 @@ def load_customer_explainability(
         )
 
     return result
+
+def load_customer_retention_recommendation(
+    customer_id: str,
+) -> dict[str, Any]:
+    customer_id = str(customer_id).strip()
+
+    if not customer_id:
+        raise ValueError(
+            "O ID do cliente não pode estar vazio."
+        )
+
+    request = Request(
+        url=(
+            f"{API_BASE_URL}/customers/"
+            f"{customer_id}/retention-recommendation"
+        ),
+        headers={
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=130) as response:
+            response_body = response.read().decode("utf-8")
+
+    except HTTPError as exc:
+        error_messages = {
+            404: f"O cliente {customer_id} não foi encontrado pela API.",
+            502: (
+                "A IA retornou uma recomendação inválida. "
+                "Tente gerar novamente."
+            ),
+            503: (
+                "O serviço de IA está indisponível no momento. "
+                "Verifique o Ollama e tente novamente."
+            ),
+            504: (
+                "A geração da recomendação ultrapassou o tempo limite. "
+                "Tente novamente."
+            ),
+        }
+
+        raise RuntimeError(
+            error_messages.get(
+                exc.code,
+                "A API respondeu com erro ao gerar a recomendação.",
+            )
+        ) from exc
+
+    except TimeoutError as exc:
+        raise RuntimeError(
+            "A geração da recomendação ultrapassou o tempo limite."
+        ) from exc
+
+    except URLError as exc:
+        raise RuntimeError(
+            "Não foi possível conectar à API do FinPulse."
+        ) from exc
+
+    try:
+        result = json.loads(response_body)
+
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "A API retornou uma recomendação inválida."
+        ) from exc
+
+    required_fields = {
+        "customer_id",
+        "churn_probability",
+        "risk_band",
+        "priority_label",
+        "recommendation",
+        "generation",
+    }
+
+    if (
+        not isinstance(result, dict)
+        or not required_fields.issubset(result)
+    ):
+        raise RuntimeError(
+            "A recomendação possui formato inesperado."
+        )
+
+    recommendation = result["recommendation"]
+    generation = result["generation"]
+
+    recommendation_fields = {
+        "case_summary",
+        "risk_interpretation",
+        "main_risk_signals",
+        "protective_factors",
+        "recommended_action_id",
+        "approach_guidance",
+        "suggested_message",
+        "attention_points",
+    }
+
+    generation_fields = {
+        "provider",
+        "model",
+        "generated_at",
+    }
+
+    if (
+        not isinstance(recommendation, dict)
+        or not recommendation_fields.issubset(recommendation)
+        or not isinstance(generation, dict)
+        or not generation_fields.issubset(generation)
+    ):
+        raise RuntimeError(
+            "O conteúdo da recomendação possui formato inesperado."
+        )
+
+    list_fields = {
+        "main_risk_signals",
+        "protective_factors",
+        "attention_points",
+    }
+
+    if any(
+        not isinstance(recommendation[field], list)
+        for field in list_fields
+    ):
+        raise RuntimeError(
+            "Os sinais da recomendação possuem formato inesperado."
+        )
+
+    return result

@@ -11,7 +11,11 @@ APP_DIR = Path(__file__).resolve().parents[1]
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
-from services.api_client import load_customer_explainability
+from services.api_client import (
+    load_customer_explainability,
+    load_customer_retention_recommendation,
+)
+
 from services.database import load_customer_priority
 
 
@@ -433,10 +437,125 @@ with st.container(border=True):
         f"Resultado do modelo: {churn_prediction_label}"
     )
 
-    st.info(
-        f"**Ação recomendada:** "
-        f"{selected_customer['recommended_action']}"
+    recommendation_key = str(selected_customer_id)
+
+    recommendation_cache = st.session_state.setdefault(
+        "retention_recommendations",
+        {},
     )
+
+    recommendation_errors = st.session_state.setdefault(
+        "retention_recommendation_errors",
+        {},
+    )
+
+    customer_recommendation = recommendation_cache.get(
+        recommendation_key
+    )
+
+    recommendation_error = recommendation_errors.get(
+        recommendation_key
+    )
+
+    if recommendation_error:
+        button_label = "Tentar gerar novamente"
+    elif customer_recommendation:
+        button_label = "Gerar nova recomendação"
+    else:
+        button_label = "Gerar recomendação com IA"
+
+    generate_recommendation = st.button(
+        button_label,
+        key=f"generate_recommendation_{recommendation_key}",
+        type="primary",
+        use_container_width=True,
+    )
+
+    if generate_recommendation:
+        recommendation_errors.pop(
+            recommendation_key,
+            None,
+        )
+
+        try:
+            with st.spinner(
+                "A IA está analisando o cliente e preparando "
+                "uma abordagem de retenção..."
+            ):
+                customer_recommendation = (
+                    load_customer_retention_recommendation(
+                        recommendation_key
+                    )
+                )
+
+        except (RuntimeError, ValueError) as exc:
+            recommendation_errors[recommendation_key] = str(exc)
+            customer_recommendation = None
+
+        else:
+            recommendation_cache[recommendation_key] = (
+                customer_recommendation
+            )
+            recommendation_errors.pop(
+                recommendation_key,
+                None,
+            )
+
+    recommendation_error = recommendation_errors.get(
+        recommendation_key
+    )
+
+    customer_recommendation = recommendation_cache.get(
+        recommendation_key
+    )
+
+    if recommendation_error:
+        st.error(recommendation_error)
+
+    elif customer_recommendation:
+        recommendation = customer_recommendation["recommendation"]
+
+        st.success(
+            "Recomendação gerada e validada pelas regras "
+            "de governança do FinPulse."
+        )
+
+        st.markdown("### Leitura do caso")
+        st.write(recommendation["case_summary"])
+
+        st.markdown("### Interpretação do risco")
+        st.write(recommendation["risk_interpretation"])
+
+        action_column, message_column = st.columns(2)
+
+        with action_column:
+            st.markdown("### Ação recomendada")
+
+            st.code(
+                recommendation["recommended_action_id"],
+                language=None,
+            )
+
+            st.write(recommendation["approach_guidance"])
+
+        with message_column:
+            st.markdown("### Mensagem sugerida")
+
+            st.info(recommendation["suggested_message"])
+
+        st.caption(
+            "Recomendação consultiva gerada por "
+            f"{customer_recommendation['generation']['provider']} · "
+            f"{customer_recommendation['generation']['model']} · "
+            "decisão final sob revisão humana."
+        )
+
+    else:
+        st.caption(
+            "A recomendação é gerada somente quando solicitada. "
+            "Nenhuma ação será executada automaticamente."
+        )
+
 st.markdown("## Perfil do cliente")
 
 with st.container(border=True):
