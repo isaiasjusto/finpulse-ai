@@ -8,6 +8,9 @@ class Settings:
     model_name: str
     model_alias: str
     database_url: str
+    ollama_host: str
+    ollama_model: str
+    ollama_timeout_seconds: float
 
     @property
     def model_uri(self) -> str:
@@ -35,6 +38,20 @@ def load_settings() -> Settings:
                 "finpulse_user:finpulse_password"
                 "@postgres:5432/finpulse"
             ),
+        ),
+        ollama_host=os.getenv(
+            "OLLAMA_HOST",
+            "http://ollama:11434",
+        ),
+        ollama_model=os.getenv(
+            "OLLAMA_MODEL",
+            "llama3.1:8b",
+        ),
+        ollama_timeout_seconds=float(
+            os.getenv(
+                "OLLAMA_TIMEOUT_SECONDS",
+                "120",
+            )
         ),
     )
 

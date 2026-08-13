@@ -14,7 +14,11 @@ from fastapi import (
     status,
 )
 
+from datetime import datetime, timezone
 
+from api.config import settings
+
+from api.retention_catalog import get_allowed_retention_actions
 
 from api.database import check_database_connection
 
@@ -39,9 +43,16 @@ from api.schemas import (
     PredictionResponse,
     RiskBand,
     StoredPredictionResponse,
+    CustomerRetentionRecommendationResponse,
+    RecommendationGenerationResponse,
 )
 
-
+from api.retention_ai_service import (
+    RetentionAIInvalidResponseError,
+    RetentionAIService,
+    RetentionAITimeoutError,
+    RetentionAIUnavailableError,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -431,6 +442,179 @@ def customer_explainability(
         **explainability_data,
     )
 
+@app.post(
+    "/customers/{customer_id}/retention-recommendation",
+    response_model=CustomerRetentionRecommendationResponse,
+    tags=["customers", "retention-ai"],
+)
+async def customer_retention_recommendation(
+    customer_id: int,
+    request: Request,
+) -> CustomerRetentionRecommendationResponse:
+    model_service: ModelService = request.app.state.model_service
+
+    if not model_service.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Champion model is not available.",
+        )
+
+    try:
+        customer = get_customer_by_id(customer_id)
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "Database query failed for retention recommendation "
+            "for customer %s.",
+            customer_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Customer database is unavailable.",
+        ) from exc
+
+    if customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer {customer_id} was not found.",
+        )
+
+    if (
+        customer["churn_prediction"] is None
+        or customer["churn_probability"] is None
+        or customer["risk_band"] is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Customer {customer_id} does not have "
+                "a stored scoring result."
+            ),
+        )
+
+    if customer["priority_label"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Customer {customer_id} does not have "
+                "a retention priority."
+            ),
+        )
+
+    features_data = {
+    feature_name: customer[feature_name]
+    for feature_name in MODEL_FEATURE_NAMES
+    }
+
+    validated_features = PredictionRequest(**features_data)
+
+    model_input = pd.DataFrame(
+        [validated_features.model_dump()]
+    )
+
+
+    features_data = {
+        feature_name: customer[feature_name]
+        for feature_name in MODEL_FEATURE_NAMES
+    }
+
+    validated_features = PredictionRequest(**features_data)
+
+    model_input = pd.DataFrame(
+        [validated_features.model_dump()]
+    )
+
+    try:
+        explainability_data = (
+            model_service.get_individual_explainability(
+                model_input
+            )
+        )
+    except Exception as exc:
+        logger.exception(
+            "Retention explainability failed for customer %s.",
+            customer_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Retention explainability failed.",
+        ) from exc
+
+    explainability = IndividualExplainabilityResponse(
+        customer_id=customer_id,
+        risk_band=RiskBand(str(customer["risk_band"])),
+        **explainability_data,
+    )
+
+    allowed_actions = get_allowed_retention_actions(
+        explainability.risk_band.value
+    )
+
+    retention_service = RetentionAIService()
+
+    try:
+
+        recommendation = (
+            await retention_service.generate_recommendation(
+                explainability=explainability,
+                priority_label=str(customer["priority_label"]),
+                allowed_actions=allowed_actions,
+            )
+        )
+
+
+
+    except RetentionAITimeoutError as exc:
+        logger.exception(
+            "Retention AI service timed out for customer %s.",
+            customer_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Retention AI service timed out.",
+        ) from exc
+
+    except RetentionAIInvalidResponseError as exc:
+        logger.exception(
+            "Retention AI returned an invalid response for customer %s.",
+            customer_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Retention AI returned an invalid response.",
+        ) from exc
+
+    except RetentionAIUnavailableError as exc:
+        logger.exception(
+            "Retention AI service is unavailable for customer %s.",
+            customer_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Retention AI service is unavailable.",
+        ) from exc
+
+    finally:
+        await retention_service.close()
+
+    return CustomerRetentionRecommendationResponse(
+        customer_id=customer_id,
+        churn_probability=explainability.churn_probability,
+        risk_band=explainability.risk_band,
+        priority_label=str(customer["priority_label"]),
+        recommendation=recommendation,
+        generation=RecommendationGenerationResponse(
+            provider="ollama",
+            model=settings.ollama_model,
+            generated_at=datetime.now(timezone.utc),
+        ),
+    )
+
+
 @app.get(
     "/customers/{customer_id}",
     response_model=CustomerResponse,
@@ -607,4 +791,4 @@ def predict(
         model_version=int(model_info_data["version"]),
         model_alias=str(model_info_data["alias"]),
     )
-    
+

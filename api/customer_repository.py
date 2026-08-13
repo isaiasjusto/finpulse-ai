@@ -35,10 +35,13 @@ CUSTOMER_BY_ID_QUERY = text(
         prediction.model_version,
         prediction.model_alias,
         prediction.scored_at,
-        prediction.scoring_run_id
+        prediction.scoring_run_id,
+        priority.priority_label
     FROM marts.mart_customer_churn_model AS model
     LEFT JOIN marts.mart_customer_churn_predictions AS prediction
         ON prediction.customer_id = model.customer_id
+    LEFT JOIN marts.mart_churn_customer_priority AS priority
+        ON priority.customer_id = model.customer_id
     WHERE model.customer_id = :customer_id
     """
 )

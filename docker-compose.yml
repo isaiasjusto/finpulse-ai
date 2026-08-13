@@ -137,6 +137,26 @@ services:
                 - gpu
     networks:
       - finpulse_network
+  ollama:
+    image: ollama/ollama
+    container_name: finpulse_ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_NO_CLOUD: "1"
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities:
+                - gpu
+    networks:
+      - finpulse_network
   api:
     build:
       context: .
@@ -224,6 +244,7 @@ volumes:
   postgres_data:
   pgadmin_data:
   minio_data:
+  ollama_data:
 
 networks:
   finpulse_network:
