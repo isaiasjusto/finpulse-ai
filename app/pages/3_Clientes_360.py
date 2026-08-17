@@ -1,10 +1,9 @@
-from pathlib import Path
-import sys
-from textwrap import dedent
-
 import streamlit as st
 
-from time import perf_counter
+from html import escape
+from pathlib import Path
+import sys
+
 
 APP_DIR = Path(__file__).resolve().parents[1]
 
@@ -12,7 +11,6 @@ if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
 from services.api_client import (
-    load_customer_explainability,
     load_customer_retention_recommendation,
 )
 
@@ -27,14 +25,37 @@ st.set_page_config(
 
 
 def load_css() -> None:
-    css_path = APP_DIR / "styles" / "theme.css"
-    css_content = css_path.read_text(encoding="utf-8")
+    css_paths = [
+        APP_DIR / "styles" / "theme.css",
+        APP_DIR / "styles" / "customer_360.css",
+    ]
+
+    css_content = "\n".join(
+        css_path.read_text(encoding="utf-8")
+        for css_path in css_paths
+    )
 
     st.markdown(
         f"<style>{css_content}</style>",
         unsafe_allow_html=True,
     )
 
+
+def render_html(content: str) -> None:
+    compact_content = " ".join(
+        line.strip()
+        for line in content.splitlines()
+        if line.strip()
+    )
+
+    st.markdown(
+        compact_content,
+        unsafe_allow_html=True,
+    )
+
+
+def format_integer(value) -> str:
+    return f"{int(value):,}".replace(",", ".")
 
 def format_integer(value) -> str:
     return f"{int(value):,}".replace(",", ".")
@@ -180,6 +201,48 @@ FEATURE_LABELS = {
     "average_utilization_ratio": "Utilização média do limite",
 }
 
+def format_recommendation_factor(
+    factor_text: str,
+    direction: str,
+) -> str:
+    original_text = str(factor_text)
+
+    matched_feature = next(
+        (
+            feature
+            for feature in FEATURE_LABELS
+            if (
+                f"'{feature}'" in original_text
+                or original_text.strip() == feature
+            )
+        ),
+        None,
+    )
+
+    if matched_feature is None:
+        translated_text = original_text
+
+        for feature, label in FEATURE_LABELS.items():
+            translated_text = translated_text.replace(
+                feature,
+                label,
+            )
+
+        return translated_text
+
+    feature_label = FEATURE_LABELS[matched_feature]
+
+    if direction == "risk":
+        return (
+            f"{feature_label} contribuiu para elevar "
+            "o risco estimado pelo modelo."
+        )
+
+    return (
+        f"{feature_label} contribuiu para reduzir "
+        "o risco estimado pelo modelo."
+    )
+
 try:
     customer_priority_df = load_customer_priority()
 
@@ -201,145 +264,20 @@ if customer_priority_df.empty:
     st.stop()
 
 
-hero_html = dedent(
-    """
-    <section class="finpulse-hero">
-        <div class="finpulse-eyebrow">
-            Inteligência de relacionamento
-        </div>
-
-        <h1 class="finpulse-title">
-            Cliente 360
-        </h1>
-
-        <p class="finpulse-description">
-            Consulte o perfil consolidado, a previsão de churn,
-            a recomendação operacional e os fatores que explicam
-            o risco individual de cada cliente.
-        </p>
-    </section>
-    """
-)
-
-hero_html = " ".join(
-    line.strip()
-    for line in hero_html.splitlines()
-    if line.strip()
-)
-
-st.markdown(
-    hero_html,
-    unsafe_allow_html=True,
-)
-
-
 customer_search_df = customer_priority_df.copy()
 
 customer_search_df["customer_id"] = (
     customer_search_df["customer_id"].astype(str)
 )
 
-risk_options = ["Todos", "High", "Medium", "Low"]
-
-priority_options = [
-    "Todas",
-    *customer_search_df["priority_label"]
-    .dropna()
-    .astype(str)
-    .drop_duplicates()
-    .tolist(),
-]
-
-
-with st.container(border=True):
-    st.markdown("### Localizar cliente")
-
-    st.caption(
-        "Pesquise pelo identificador ou refine a carteira "
-        "pela faixa de risco e prioridade operacional."
-    )
-
-    search_column, risk_column, priority_column = st.columns(
-        [1.4, 1, 1]
-    )
-
-    with search_column:
-        customer_search = st.text_input(
-            "ID do cliente",
-            placeholder="Digite o ID ou parte dele",
-        )
-
-    with risk_column:
-        selected_risk = st.selectbox(
-            "Faixa de risco",
-            options=risk_options,
-            format_func=lambda value: {
-                "Todos": "Todos os riscos",
-                "High": "Alto risco",
-                "Medium": "Médio risco",
-                "Low": "Baixo risco",
-            }.get(value, value),
-        )
-
-    with priority_column:
-        selected_priority = st.selectbox(
-            "Prioridade",
-            options=priority_options,
-            format_func=lambda value: (
-                "Todas as prioridades"
-                if value == "Todas"
-                else value
-            ),
-        )
-
-
-filtered_customer_df = customer_search_df.copy()
-
-if customer_search.strip():
-    filtered_customer_df = filtered_customer_df[
-        filtered_customer_df["customer_id"].str.contains(
-            customer_search.strip(),
-            case=False,
-            na=False,
-            regex=False,
-        )
-    ]
-
-if selected_risk != "Todos":
-    filtered_customer_df = filtered_customer_df[
-        filtered_customer_df["risk_band"].eq(selected_risk)
-    ]
-
-if selected_priority != "Todas":
-    filtered_customer_df = filtered_customer_df[
-        filtered_customer_df["priority_label"].eq(
-            selected_priority
-        )
-    ]
-
-
-result_count = len(filtered_customer_df)
-
-st.caption(
-    f"{format_integer(result_count)} cliente(s) encontrado(s)"
-)
-
-
-if filtered_customer_df.empty:
-    st.warning(
-        "Nenhum cliente corresponde aos filtros selecionados."
-    )
-    st.stop()
-
-
 customer_options = (
-    filtered_customer_df["customer_id"]
+    customer_search_df["customer_id"]
     .drop_duplicates()
     .tolist()
 )
 
 customer_lookup = (
-    filtered_customer_df
+    customer_search_df
     .drop_duplicates(subset=["customer_id"])
     .set_index("customer_id")
 )
@@ -348,38 +286,202 @@ remembered_customer_id = str(
     st.session_state.get("selected_customer_id", "")
 )
 
-if remembered_customer_id in customer_options:
-    default_customer_index = customer_options.index(
-        remembered_customer_id
-    )
-else:
-    default_customer_index = 0
-
 
 def format_customer_option(customer_id: str) -> str:
-    customer_row = customer_lookup.loc[customer_id]
+    return f"ID {customer_id}"
 
-    risk_label = RISK_LABELS.get(
-        customer_row["risk_band"],
-        customer_row["risk_band"],
-    )
-
-    return (
-        f"Cliente {customer_id} · {risk_label} · "
-        f"Prioridade {customer_row['priority_label']}"
-    )
 
 def format_ratio_change(value) -> str:
     percentage_change = (float(value) - 1) * 100
     return f"{percentage_change:+.2f}%".replace(".", ",")
 
 
-selected_customer_id = st.selectbox(
-    "Cliente selecionado",
-    options=customer_options,
-    index=default_customer_index,
-    format_func=format_customer_option,
+header_column, probability_column, risk_column, priority_column = (
+    st.columns([3.5, 1, 1, 1], gap="medium")
 )
+
+with header_column:
+    render_html(
+        """
+        <div class="customer360-header-copy">
+            <div class="customer360-eyebrow">
+                Análise individual
+            </div>
+
+            <h1 class="customer360-page-title">
+                Cliente 360
+            </h1>
+
+            <p class="customer360-page-description">
+                Selecione um cliente para consultar sua visão
+                consolidada e receber apoio à retenção.
+            </p>
+        </div>
+        """
+    )
+
+    sort_options = {
+        "Maior probabilidade de churn": (
+            "churn_probability",
+            False,
+        ),
+        "Menor probabilidade de churn": (
+            "churn_probability",
+            True,
+        ),
+        "ID do cliente": (
+            "customer_id",
+            True,
+        ),
+    }
+
+    (
+        selector_column,
+        risk_filter_column,
+        priority_filter_column,
+        sort_filter_column,
+    ) = st.columns(
+        [1.25, 1, 1, 1.35],
+        gap="small",
+    )
+
+    available_risks = [
+        risk
+        for risk in ("High", "Medium", "Low")
+        if risk in set(
+            customer_search_df["risk_band"]
+            .dropna()
+            .astype(str)
+        )
+    ]
+
+    with risk_filter_column:
+        selected_risks = st.multiselect(
+            "Faixa de risco",
+            options=available_risks,
+            default=[],
+            format_func=lambda risk: RISK_LABELS.get(
+                risk,
+                risk,
+            ),
+            placeholder="Todas",
+            key="customer360_risk_filter",
+        )
+
+    priority_order = {
+        "Crítica": 0,
+        "Alta": 1,
+        "Média": 2,
+        "Baixa": 3,
+    }
+
+    available_priorities = sorted(
+        customer_search_df["priority_label"]
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist(),
+        key=lambda priority: priority_order.get(
+            priority,
+            99,
+        ),
+    )
+
+    with priority_filter_column:
+        selected_priorities = st.multiselect(
+            "Prioridade",
+            options=available_priorities,
+            default=[],
+            placeholder="Todas",
+            key="customer360_priority_filter",
+        )
+
+    with sort_filter_column:
+        selected_sort = st.selectbox(
+            "Ordenar por",
+            options=list(sort_options),
+            index=0,
+            key="customer360_sort_filter",
+        )
+
+    filtered_customer_df = customer_search_df.copy()
+
+    if selected_risks:
+        filtered_customer_df = filtered_customer_df[
+            filtered_customer_df["risk_band"]
+            .astype(str)
+            .isin(selected_risks)
+        ]
+
+    if selected_priorities:
+        filtered_customer_df = filtered_customer_df[
+            filtered_customer_df["priority_label"]
+            .astype(str)
+            .isin(selected_priorities)
+        ]
+
+    sort_column, sort_ascending = sort_options[
+        selected_sort
+    ]
+
+    filtered_customer_df = filtered_customer_df.sort_values(
+        by=sort_column,
+        ascending=sort_ascending,
+        kind="stable",
+    )
+
+    filtered_customer_options = (
+        filtered_customer_df["customer_id"]
+        .drop_duplicates()
+        .tolist()
+    )
+
+    if not filtered_customer_options:
+        st.warning(
+            "Nenhum cliente corresponde aos filtros selecionados."
+        )
+        st.stop()
+
+    current_widget_customer = str(
+        st.session_state.get(
+            "customer360_customer_selector",
+            "",
+        )
+    )
+
+    if current_widget_customer not in filtered_customer_options:
+        st.session_state.pop(
+            "customer360_customer_selector",
+            None,
+        )
+
+    if remembered_customer_id in filtered_customer_options:
+        default_customer_index = (
+            filtered_customer_options.index(
+                remembered_customer_id
+            )
+        )
+    else:
+        default_customer_index = 0
+
+    with selector_column:
+        selected_customer_id = st.selectbox(
+            "Buscar cliente",
+            options=filtered_customer_options,
+            index=default_customer_index,
+            format_func=format_customer_option,
+            label_visibility="collapsed",
+            key="customer360_customer_selector",
+        )
+
+        available_customer_count = (
+            f"{len(filtered_customer_options):,}"
+            .replace(",", ".")
+        )
+
+        st.caption(
+            f"{available_customer_count} clientes disponíveis"
+        )
 
 st.session_state["selected_customer_id"] = (
     selected_customer_id
@@ -389,9 +491,24 @@ selected_customer = customer_lookup.loc[
     selected_customer_id
 ]
 
+churn_probability = float(
+    selected_customer["churn_probability"]
+)
+
+bounded_probability = min(
+    max(churn_probability, 0.0),
+    1.0,
+)
+
+probability_angle = bounded_probability * 360
+
 risk_label = RISK_LABELS.get(
     selected_customer["risk_band"],
     selected_customer["risk_band"],
+)
+
+priority_label = str(
+    selected_customer["priority_label"]
 )
 
 churn_prediction_label = (
@@ -400,76 +517,415 @@ churn_prediction_label = (
     else "Permanência prevista"
 )
 
-st.markdown("## Diagnóstico operacional")
+with probability_column:
+    render_html(
+        f"""
+        <article
+            class="
+                customer360-card
+                customer360-kpi-card
+                customer360-probability-card
+            "
+        >
+            <div
+                class="customer360-mini-gauge"
+                style="--probability-angle: {probability_angle:.2f}deg;"
+            >
+                <strong>
+                    {format_percentage(churn_probability)}
+                </strong>
+            </div>
 
-with st.container(border=True):
-    customer_column, probability_column, risk_column, priority_column = (
-        st.columns(4)
+            <div>
+                <span class="customer360-kpi-label">
+                    Probabilidade
+                </span>
+
+                <div class="customer360-kpi-value">
+                    {format_percentage(churn_probability)}
+                </div>
+
+                <div class="customer360-kpi-caption">
+                    de churn
+                </div>
+            </div>
+        </article>
+        """
     )
 
-    with customer_column:
-        st.metric(
-            "Cliente",
-            selected_customer_id,
+with risk_column:
+    render_html(
+        f"""
+        <article class="customer360-card customer360-kpi-card">
+            <div class="customer360-kpi-top">
+                <span class="customer360-kpi-label">
+                    Risco
+                </span>
+
+                <span class="customer360-kpi-icon">
+                    &#9888;
+                </span>
+            </div>
+
+            <div
+                class="
+                    customer360-kpi-value
+                    customer360-kpi-danger
+                "
+            >
+                {escape(str(risk_label))}
+            </div>
+
+            <div class="customer360-kpi-caption">
+                {escape(churn_prediction_label)}
+            </div>
+        </article>
+        """
+    )
+
+with priority_column:
+    render_html(
+        f"""
+        <article class="customer360-card customer360-kpi-card">
+            <div class="customer360-kpi-top">
+                <span class="customer360-kpi-label">
+                    Prioridade
+                </span>
+
+                <span class="customer360-kpi-icon">
+                    &#9873;
+                </span>
+            </div>
+
+            <div
+                class="
+                    customer360-kpi-value
+                    customer360-kpi-danger
+                "
+            >
+                {escape(priority_label)}
+            </div>
+
+            <div class="customer360-kpi-caption">
+                Revisão operacional
+            </div>
+        </article>
+        """
+    )
+
+
+profile_age_value = format_feature_value(
+    "customer_age",
+    selected_customer["customer_age"],
+)
+
+profile_age = f"{profile_age_value} anos"
+
+profile_gender = format_feature_value(
+    "gender",
+    selected_customer["gender"],
+)
+
+profile_marital = format_feature_value(
+    "marital_status",
+    selected_customer["marital_status"],
+)
+
+profile_card = format_feature_value(
+    "card_category",
+    selected_customer["card_category"],
+)
+
+relationship_products = format_feature_value(
+    "total_relationship_count",
+    selected_customer["total_relationship_count"],
+)
+
+relationship_months_value = format_feature_value(
+    "months_on_book",
+    selected_customer["months_on_book"],
+)
+
+relationship_months = (
+    f"{relationship_months_value} meses"
+)
+
+relationship_contacts = format_feature_value(
+    "contacts_count_last_12m",
+    selected_customer["contacts_count_last_12m"],
+)
+
+financial_amount = format_feature_value(
+    "total_transaction_amount",
+    selected_customer["total_transaction_amount"],
+)
+
+financial_limit = format_feature_value(
+    "credit_limit",
+    selected_customer["credit_limit"],
+)
+
+financial_revolving = format_feature_value(
+    "total_revolving_balance",
+    selected_customer["total_revolving_balance"],
+)
+
+transaction_count = format_feature_value(
+    "total_transaction_count",
+    selected_customer["total_transaction_count"],
+)
+
+monthly_transaction_amount = format_feature_value(
+    "total_transaction_amount",
+    float(selected_customer["total_transaction_amount"]) / 12,
+)
+
+amount_change_value = float(
+    selected_customer["amount_change_q4_q1"]
+)
+
+count_change_value = float(
+    selected_customer["transaction_count_change_q4_q1"]
+)
+
+amount_change = format_ratio_change(amount_change_value)
+count_change = format_ratio_change(count_change_value)
+
+amount_change_class = (
+    "customer360-summary-danger"
+    if amount_change_value < 1
+    else "customer360-summary-positive"
+)
+
+count_change_class = (
+    "customer360-summary-danger"
+    if count_change_value < 1
+    else "customer360-summary-positive"
+)
+
+summary_columns = st.columns(
+    [1.18, 1, 1, 1.25],
+    gap="small",
+)
+
+with summary_columns[0]:
+    render_html(
+        f"""
+        <article class="customer360-card customer360-summary-card">
+            <header class="customer360-summary-header">
+                <span class="customer360-summary-icon">&#9673;</span>
+                <span class="customer360-summary-title">
+                    Perfil do cliente
+                </span>
+            </header>
+
+            <div class="customer360-summary-grid">
+                <div class="customer360-summary-item">
+                    <span>Idade</span>
+                    <strong>{escape(profile_age)}</strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Gênero</span>
+                    <strong>{escape(profile_gender)}</strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Estado civil</span>
+                    <strong>{escape(profile_marital)}</strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Cartão</span>
+                    <strong>{escape(profile_card)}</strong>
+                </div>
+            </div>
+        </article>
+        """
+    )
+
+with summary_columns[1]:
+    render_html(
+        f"""
+        <article class="customer360-card customer360-summary-card">
+            <header class="customer360-summary-header">
+                <span class="customer360-summary-icon">&#8644;</span>
+                <span class="customer360-summary-title">
+                    Relacionamento
+                </span>
+            </header>
+
+            <div class="customer360-summary-grid">
+                <div class="customer360-summary-item">
+                    <span>Relacionamentos</span>
+                    <strong>{escape(relationship_products)}</strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Tempo de vínculo</span>
+                    <strong>{escape(relationship_months)}</strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Contatos em 12 meses</span>
+                    <strong>{escape(relationship_contacts)}</strong>
+                </div>
+            </div>
+        </article>
+        """
+    )
+
+with summary_columns[2]:
+    render_html(
+        f"""
+        <article class="customer360-card customer360-summary-card">
+            <header class="customer360-summary-header">
+                <span class="customer360-summary-icon">&#9635;</span>
+                <span class="customer360-summary-title">
+                    Financeiro
+                </span>
+            </header>
+
+            <div class="customer360-summary-grid">
+                <div class="customer360-summary-item">
+                    <span>Valor transacionado</span>
+                    <strong>{escape(financial_amount)}</strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Limite de crédito</span>
+                    <strong>{escape(financial_limit)}</strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Saldo rotativo</span>
+                    <strong>{escape(financial_revolving)}</strong>
+                </div>
+            </div>
+        </article>
+        """
+    )
+
+with summary_columns[3]:
+    render_html(
+        f"""
+        <article class="customer360-card customer360-summary-card">
+            <header class="customer360-summary-header">
+                <span class="customer360-summary-icon">&#8599;</span>
+                <span class="customer360-summary-title">
+                    Transações
+                </span>
+            </header>
+
+            <div class="customer360-summary-grid">
+                <div class="customer360-summary-item">
+                    <span>Total</span>
+                    <strong>{escape(transaction_count)}</strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Valor médio mensal</span>
+                    <strong>{escape(monthly_transaction_amount)}</strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Variação da quantidade</span>
+                    <strong class="{count_change_class}">
+                        {escape(count_change)}
+                    </strong>
+                </div>
+
+                <div class="customer360-summary-item">
+                    <span>Variação do valor</span>
+                    <strong class="{amount_change_class}">
+                        {escape(amount_change)}
+                    </strong>
+                </div>
+            </div>
+        </article>
+        """
+    )
+
+
+recommendation_key = str(selected_customer_id)
+
+recommendation_cache = st.session_state.setdefault(
+    "retention_recommendations",
+    {},
+)
+
+recommendation_errors = st.session_state.setdefault(
+    "retention_recommendation_errors",
+    {},
+)
+
+customer_recommendation = recommendation_cache.get(
+    recommendation_key
+)
+
+recommendation_error = recommendation_errors.get(
+    recommendation_key
+)
+
+if recommendation_error:
+    button_label = "Tentar gerar novamente"
+elif customer_recommendation:
+    button_label = "Gerar nova recomendação"
+else:
+    button_label = "Gerar recomendação"
+
+
+with st.container(
+    border=True,
+    key="customer360-ai-panel",
+):
+    (
+        ai_title_column,
+        ai_button_column,
+        ai_review_column,
+    ) = st.columns(
+        [2.35, 1, 1.2],
+        gap="medium",
+    )
+
+    with ai_title_column:
+        render_html(
+            """
+            <div class="customer360-ai-heading">
+                <span class="customer360-ai-symbol">
+                    &#10024;
+                </span>
+
+                <div>
+                    <span class="customer360-ai-eyebrow">
+                        FinPulse AI
+                    </span>
+
+                    <h2 class="customer360-ai-title">
+                        Recomendação de retenção com IA
+                    </h2>
+                </div>
+            </div>
+            """
         )
 
-    with probability_column:
-        st.metric(
-            "Probabilidade de churn",
-            format_percentage(
-                selected_customer["churn_probability"]
-            ),
+    with ai_button_column:
+        generate_recommendation = st.button(
+            button_label,
+            key=f"generate_recommendation_{recommendation_key}",
+            type="primary",
+            use_container_width=True,
         )
 
-    with risk_column:
-        st.metric(
-            "Faixa de risco",
-            risk_label,
+    with ai_review_column:
+        render_html(
+            """
+            <div class="customer360-human-review">
+                <span>&#9888;</span>
+                Revisão humana obrigatória
+            </div>
+            """
         )
-
-    with priority_column:
-        st.metric(
-            "Prioridade operacional",
-            selected_customer["priority_label"],
-        )
-
-    st.caption(
-        f"Resultado do modelo: {churn_prediction_label}"
-    )
-
-    recommendation_key = str(selected_customer_id)
-
-    recommendation_cache = st.session_state.setdefault(
-        "retention_recommendations",
-        {},
-    )
-
-    recommendation_errors = st.session_state.setdefault(
-        "retention_recommendation_errors",
-        {},
-    )
-
-    customer_recommendation = recommendation_cache.get(
-        recommendation_key
-    )
-
-    recommendation_error = recommendation_errors.get(
-        recommendation_key
-    )
-
-    if recommendation_error:
-        button_label = "Tentar gerar novamente"
-    elif customer_recommendation:
-        button_label = "Gerar nova recomendação"
-    else:
-        button_label = "Gerar recomendação com IA"
-
-    generate_recommendation = st.button(
-        button_label,
-        key=f"generate_recommendation_{recommendation_key}",
-        type="primary",
-        use_container_width=True,
-    )
 
     if generate_recommendation:
         recommendation_errors.pop(
@@ -489,7 +945,9 @@ with st.container(border=True):
                 )
 
         except (RuntimeError, ValueError) as exc:
-            recommendation_errors[recommendation_key] = str(exc)
+            recommendation_errors[recommendation_key] = (
+                str(exc)
+            )
             customer_recommendation = None
 
         else:
@@ -500,7 +958,6 @@ with st.container(border=True):
                 recommendation_key,
                 None,
             )
-
     recommendation_error = recommendation_errors.get(
         recommendation_key
     )
@@ -515,360 +972,253 @@ with st.container(border=True):
     elif customer_recommendation:
         recommendation = customer_recommendation["recommendation"]
 
-        st.success(
-            "Recomendação gerada e validada pelas regras "
-            "de governança do FinPulse."
+        action_id = recommendation["recommended_action_id"]
+
+        action_labels = {
+            "priority_retention_contact": (
+                "Contato prioritário de retenção"
+            ),
+            "preventive_contact": "Contato preventivo",
+            "transaction_engagement": (
+                "Engajamento transacional"
+            ),
+            "financial_profile_review": (
+                "Revisão do perfil financeiro"
+            ),
+            "maintain_relationship": (
+                "Manutenção do relacionamento"
+            ),
+        }
+
+        action_descriptions = {
+            "priority_retention_contact": (
+                "Ação imediata e personalizada para reduzir "
+                "o risco de churn."
+            ),
+            "preventive_contact": (
+                "Contato consultivo para compreender o momento "
+                "do cliente."
+            ),
+            "transaction_engagement": (
+                "Aproximação voltada à recuperação do uso "
+                "e do relacionamento."
+            ),
+            "financial_profile_review": (
+                "Revisão consultiva das necessidades e do perfil "
+                "financeiro atual."
+            ),
+            "maintain_relationship": (
+                "Acompanhamento preventivo para preservar "
+                "o vínculo atual."
+            ),
+        }
+
+        action_label = action_labels.get(
+            action_id,
+            action_id.replace("_", " ").title(),
         )
 
-        st.markdown("### Leitura do caso")
-        st.write(recommendation["case_summary"])
+        action_description = action_descriptions.get(
+            action_id,
+            "Ação consultiva selecionada pelas regras "
+            "de retenção do FinPulse.",
+        )
 
-        st.markdown("### Interpretação do risco")
-        st.write(recommendation["risk_interpretation"])
+        risk_signals = (
+            recommendation.get("main_risk_signals") or []
+        )
 
-        action_column, message_column = st.columns(2)
+        protective_factors = (
+            recommendation.get("protective_factors") or []
+        )
+
+        attention_points = (
+            recommendation.get("attention_points") or []
+        )
+
+        risk_signals_html = "".join(
+            (
+                "<li>"
+                f"{escape(format_recommendation_factor(signal, 'risk'))}"
+                "</li>"
+            )
+            for signal in risk_signals
+        )
+
+        protective_factors_html = "".join(
+            (
+                "<li>"
+                f"{escape(format_recommendation_factor(factor, 'protective'))}"
+                "</li>"
+            )
+            for factor in protective_factors
+        )
+
+        attention_points_html = "".join(
+            (
+                "<li>"
+                f"{escape(format_recommendation_factor(point, 'risk'))}"
+                "</li>"
+            )
+            for point in attention_points
+        )
+
+        action_column, analysis_column = st.columns(
+            [1, 1.85],
+            gap="medium",
+        )
 
         with action_column:
-            st.markdown("### Ação recomendada")
+            render_html(
+                f"""
+                <article class="customer360-ai-card customer360-action-card">
+                    <div class="customer360-ai-section-label">
+                        Ação recomendada
+                    </div>
 
-            st.code(
-                recommendation["recommended_action_id"],
-                language=None,
+                    <div class="customer360-action-hero">
+                        <span class="customer360-action-icon">
+                            &#9742;
+                        </span>
+
+                        <div>
+                            <h3>
+                                {escape(action_label)}
+                            </h3>
+
+                            <p>
+                                {escape(action_description)}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="customer360-ai-divider"></div>
+
+                    <div class="customer360-ai-section-label">
+                        Resumo do caso
+                    </div>
+
+                    <p class="customer360-ai-body">
+                        {escape(recommendation["case_summary"])}
+                    </p>
+
+                    <p class="customer360-ai-interpretation">
+                        {escape(recommendation["risk_interpretation"])}
+                    </p>
+                </article>
+                """
             )
 
-            st.write(recommendation["approach_guidance"])
+        with analysis_column:
+            render_html(
+                f"""
+                <article class="customer360-ai-card customer360-signals-card">
+                    <div class="customer360-signals-column">
+                        <div class="customer360-ai-section-label">
+                            Principais sinais
+                        </div>
 
-        with message_column:
-            st.markdown("### Mensagem sugerida")
+                        <ul class="customer360-ai-list customer360-risk-list">
+                            {risk_signals_html}
+                        </ul>
+                    </div>
 
-            st.info(recommendation["suggested_message"])
+                    <div class="customer360-signals-column">
+                        <div class="customer360-ai-section-label">
+                            Fatores protetivos
+                        </div>
 
-        st.caption(
-            "Recomendação consultiva gerada por "
-            f"{customer_recommendation['generation']['provider']} · "
-            f"{customer_recommendation['generation']['model']} · "
-            "decisão final sob revisão humana."
+                        <ul class="customer360-ai-list customer360-protective-list">
+                            {protective_factors_html}
+                        </ul>
+                    </div>
+                </article>
+                """
+            )
+
+            approach_column, message_column = st.columns(
+                [1, 1.35],
+                gap="small",
+            )
+
+            with approach_column:
+                render_html(
+                    f"""
+                    <article class="customer360-ai-card customer360-guidance-card">
+                        <div class="customer360-ai-section-label">
+                            Orientação de abordagem
+                        </div>
+
+                        <p class="customer360-ai-body">
+                            {escape(
+                                recommendation["approach_guidance"]
+                            )}
+                        </p>
+                    </article>
+                    """
+                )
+
+            with message_column:
+                render_html(
+                    f"""
+                    <article class="customer360-ai-card customer360-message-card">
+                        <div class="customer360-ai-section-label">
+                            Mensagem sugerida
+                        </div>
+
+                        <blockquote>
+                            {escape(
+                                recommendation["suggested_message"]
+                            )}
+                        </blockquote>
+                    </article>
+                    """
+                )
+
+        if attention_points_html:
+            render_html(
+                f"""
+                <div class="customer360-attention-strip">
+                    <strong>Pontos de atenção:</strong>
+
+                    <ul>
+                        {attention_points_html}
+                    </ul>
+                </div>
+                """
+            )
+
+        render_html(
+            f"""
+            <div class="customer360-generation-caption">
+                Recomendação consultiva gerada por
+                {escape(
+                    str(
+                        customer_recommendation[
+                            "generation"
+                        ]["provider"]
+                    )
+                )}
+                ·
+                {escape(
+                    str(
+                        customer_recommendation[
+                            "generation"
+                        ]["model"]
+                    )
+                )}
+                · decisão final sob revisão humana.
+            </div>
+            """
         )
 
     else:
-        st.caption(
-            "A recomendação é gerada somente quando solicitada. "
-            "Nenhuma ação será executada automaticamente."
+        render_html(
+            """
+            <p class="customer360-ai-empty">
+                A recomendação será gerada somente quando
+                solicitada. Nenhuma ação será executada
+                automaticamente.
+            </p>
+            """
         )
-
-st.markdown("## Perfil do cliente")
-
-with st.container(border=True):
-    age_column, gender_column, marital_column, education_column = (
-        st.columns(4)
-    )
-
-    with age_column:
-        age_value = format_feature_value(
-            "customer_age",
-            selected_customer["customer_age"],
-        )
-
-        st.metric(
-            "Idade",
-            f"{age_value} anos",
-        )
-
-    with gender_column:
-        st.metric(
-            "Gênero",
-            format_feature_value(
-                "gender",
-                selected_customer["gender"],
-            ),
-        )
-
-    with marital_column:
-        st.metric(
-            "Estado civil",
-            format_feature_value(
-                "marital_status",
-                selected_customer["marital_status"],
-            ),
-        )
-
-    with education_column:
-        st.metric(
-            "Escolaridade",
-            format_feature_value(
-                "education_level",
-                selected_customer["education_level"],
-            ),
-        )
-
-    dependent_column, income_column, card_column, relationship_column = (
-        st.columns(4)
-    )
-
-    with dependent_column:
-        st.metric(
-            "Dependentes",
-            format_feature_value(
-                "dependent_count",
-                selected_customer["dependent_count"],
-            ),
-        )
-
-    with income_column:
-        st.metric(
-            "Faixa de renda",
-            format_feature_value(
-                "income_category",
-                selected_customer["income_category"],
-            ),
-        )
-
-    with card_column:
-        st.metric(
-            "Categoria do cartão",
-            format_feature_value(
-                "card_category",
-                selected_customer["card_category"],
-            ),
-        )
-
-    with relationship_column:
-        relationship_months = format_feature_value(
-            "months_on_book",
-            selected_customer["months_on_book"],
-        )
-
-        st.metric(
-            "Tempo de relacionamento",
-            f"{relationship_months} meses",
-        )
-st.markdown("## Relacionamento e comportamento")
-
-with st.container(border=True):
-    products_column, inactivity_column, contacts_column, transactions_column = (
-        st.columns(4)
-    )
-
-    with products_column:
-        st.metric(
-            "Produtos contratados",
-            format_feature_value(
-                "total_relationship_count",
-                selected_customer["total_relationship_count"],
-            ),
-        )
-
-    with inactivity_column:
-        st.metric(
-            "Meses de inatividade",
-            format_feature_value(
-                "months_inactive_last_12m",
-                selected_customer["months_inactive_last_12m"],
-            ),
-        )
-
-    with contacts_column:
-        st.metric(
-            "Contatos nos últimos 12 meses",
-            format_feature_value(
-                "contacts_count_last_12m",
-                selected_customer["contacts_count_last_12m"],
-            ),
-        )
-
-    with transactions_column:
-        st.metric(
-            "Total de transações",
-            format_feature_value(
-                "total_transaction_count",
-                selected_customer["total_transaction_count"],
-            ),
-        )
-
-st.markdown("## Situação financeira")
-
-with st.container(border=True):
-    limit_column, revolving_column, available_column, utilization_column = (
-        st.columns(4)
-    )
-
-    with limit_column:
-        st.metric(
-            "Limite de crédito",
-            format_feature_value(
-                "credit_limit",
-                selected_customer["credit_limit"],
-            ),
-        )
-
-    with revolving_column:
-        st.metric(
-            "Saldo rotativo",
-            format_feature_value(
-                "total_revolving_balance",
-                selected_customer["total_revolving_balance"],
-            ),
-        )
-
-    with available_column:
-        st.metric(
-            "Crédito disponível",
-            format_feature_value(
-                "average_open_to_buy",
-                selected_customer["average_open_to_buy"],
-            ),
-        )
-
-    with utilization_column:
-        st.metric(
-            "Utilização do limite",
-            format_feature_value(
-                "average_utilization_ratio",
-                selected_customer["average_utilization_ratio"],
-            ),
-        )
-st.markdown("## Movimentação transacional")
-
-with st.container(border=True):
-    amount_column, count_column, amount_change_column, count_change_column = (
-        st.columns(4)
-    )
-
-    with amount_column:
-        st.metric(
-            "Valor total transacionado",
-            format_feature_value(
-                "total_transaction_amount",
-                selected_customer["total_transaction_amount"],
-            ),
-        )
-
-    with count_column:
-        st.metric(
-            "Quantidade de transações",
-            format_feature_value(
-                "total_transaction_count",
-                selected_customer["total_transaction_count"],
-            ),
-        )
-
-    with amount_change_column:
-        st.metric(
-            "Variação do valor — Q4 vs. Q1",
-            format_ratio_change(
-                selected_customer["amount_change_q4_q1"]
-            ),
-        )
-
-    with count_change_column:
-        st.metric(
-            "Variação das transações — Q4 vs. Q1",
-            format_ratio_change(
-                selected_customer[
-                    "transaction_count_change_q4_q1"
-                ]
-            ),
-        )
-
-    st.caption(
-        "As variações comparam o quarto trimestre com o primeiro. "
-        "Valores negativos indicam redução da atividade do cliente."
-    )
-
-st.markdown("## Explicabilidade individual")
-
-st.caption(
-    "Principais características que influenciaram "
-    "a previsão de churn deste cliente."
-)
-
-try:
-    with st.spinner(
-        "Carregando a explicabilidade do cliente..."
-    ):
-        customer_explainability = (
-            load_customer_explainability(
-                str(selected_customer_id)
-            )
-        )
-
-    explainability_error = None
-
-except RuntimeError as exc:
-    customer_explainability = None
-    explainability_error = str(exc)
-
-
-if explainability_error:
-    st.warning(explainability_error)
-
-elif customer_explainability:
-    increasing_column, reducing_column = st.columns(2)
-
-    with increasing_column:
-        st.markdown("### Fatores que aumentam o risco")
-
-        for factor in customer_explainability[
-            "risk_increasing_factors"
-        ]:
-            importance_share = min(
-                max(
-                    float(factor["importance_share"]),
-                    0.0,
-                ),
-                1.0,
-            )
-
-            feature_label = FEATURE_LABELS.get(
-                factor["feature"],
-                factor["feature"],
-            )
-
-            formatted_feature_value = format_feature_value(
-                factor["feature"],
-                factor["value"],
-            )
-
-            st.markdown(f"**{feature_label}**")
-
-            st.caption(
-                f"Valor observado: {formatted_feature_value} · "
-                f"Participação: "
-                f"{importance_share * 100:.2f}%"
-            )
-
-            st.progress(importance_share)
-
-    with reducing_column:
-        st.markdown("### Fatores que reduzem o risco")
-
-        for factor in customer_explainability[
-            "risk_reducing_factors"
-        ]:
-            importance_share = min(
-                max(
-                    float(factor["importance_share"]),
-                    0.0,
-                ),
-                1.0,
-            )
-
-            feature_label = FEATURE_LABELS.get(
-                factor["feature"],
-                factor["feature"],
-            )
-
-            formatted_feature_value = format_feature_value(
-                factor["feature"],
-                factor["value"],
-            )
-
-            st.markdown(f"**{feature_label}**")
-
-            st.caption(
-                f"Valor observado: {formatted_feature_value} · "
-                f"Participação: "
-                f"{importance_share * 100:.2f}%"
-            )
-
-            st.progress(importance_share)
