@@ -470,17 +470,8 @@ with header_column:
             options=filtered_customer_options,
             index=default_customer_index,
             format_func=format_customer_option,
-            label_visibility="collapsed",
+            label_visibility="visible",
             key="customer360_customer_selector",
-        )
-
-        available_customer_count = (
-            f"{len(filtered_customer_options):,}"
-            .replace(",", ".")
-        )
-
-        st.caption(
-            f"{available_customer_count} clientes disponíveis"
         )
 
 st.session_state["selected_customer_id"] = (
