@@ -1209,7 +1209,8 @@ with st.container(
             <p class="customer360-ai-empty">
                 A recomendação será gerada somente quando
                 solicitada. Nenhuma ação será executada
-                automaticamente.
+                automaticamente. porque não está funcionando
+                
             </p>
             """
         )
