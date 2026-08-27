@@ -11,7 +11,7 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-Analytics_Dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-111111)](https://ollama.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Status](https://img.shields.io/badge/status-Retention_AI_API_validada-16A085)](#status-do-projeto)
+[![Status](https://img.shields.io/badge/status-Customer_360_AI_integrated-16A085)](#status-do-projeto)
 
 ![Solução técnica do FinPulse AI para previsão de churn](docs/architecture/finpulse-ai-solution-overview.png)
 
@@ -29,7 +29,9 @@ Além de estimar a probabilidade de cancelamento, a plataforma:
 - explica previsões global e individualmente com SHAP;
 - mantém rastreabilidade entre modelo, scoring e cliente;
 - aplica um catálogo determinístico de ações de retenção;
-- utiliza um LLM local para selecionar uma ação permitida e produzir uma mensagem de abordagem;
+- força contato prioritário quando o cliente combina alto risco com prioridade Alta ou Crítica;
+- exclui atributos pessoais não acionáveis das evidências operacionais e do contexto enviado ao LLM;
+- utiliza um LLM local para selecionar uma ação permitida quando não existe uma política determinística e produzir uma mensagem de abordagem;
 - valida estruturalmente a saída da IA antes de entregá-la ao usuário;
 - mantém a decisão final sob revisão humana.
 
@@ -82,13 +84,16 @@ A solução operacional atualmente entrega:
 - snapshot de scoring em Parquet no MinIO;
 - FastAPI `0.5.0` para serving, scoring, clientes, avaliação, explicabilidade e retenção;
 - dashboard multipágina em Streamlit;
-- página independente de Cliente 360;
+- Cliente 360 integrado com perfil, indicadores financeiros, comportamento, SHAP individual e recomendação de retenção;
 - priorização de retenção por risco e relevância de negócio;
 - explicabilidade global com SHAP para as 19 features originais;
 - explicabilidade individual com fatores que aumentam e reduzem a previsão;
 - catálogo governado de ações de retenção;
 - Ollama executando `llama3.1:8b` localmente;
 - endpoint de recomendação de retenção com saída estruturada;
+- painel de recomendação integrado ao Streamlit, com geração sob demanda, spinner, cache por cliente e opção de tentar novamente;
+- política determinística que força `priority_retention_contact` para risco High com prioridade Alta ou Crítica;
+- exclusão de idade, gênero, dependentes, escolaridade, estado civil e faixa de renda das evidências operacionais enviadas ao LLM;
 - validação por Pydantic e regras determinísticas;
 - tratamento controlado de indisponibilidade, timeout e resposta inválida da IA;
 - rastreabilidade entre treinamento, versão do modelo e execução do scoring.
@@ -221,7 +226,7 @@ Streamlit / operação e Cliente 360
 | FastAPI | serving, consultas operacionais, explicabilidade e orquestração da recomendação |
 | Catálogo de retenção | definição determinística das ações autorizadas por faixa de risco |
 | Ollama | runtime local do modelo de linguagem |
-| Llama 3.1 8B | seleção entre ações permitidas e geração da mensagem de abordagem |
+| Llama 3.1 8B | seleção entre ações permitidas quando não há ação determinada por política e geração da mensagem de abordagem |
 | Pydantic | validação do contrato estruturado da recomendação |
 | Streamlit | experiência analítica e operação de retenção |
 | Docker Compose | reprodução, healthchecks e comunicação entre serviços |
@@ -246,8 +251,11 @@ Código determinístico
 Catálogo de retenção
 → define ações permitidas
 
+Política determinística
+→ força contato prioritário em High + Alta/Crítica
+
 Llama
-→ escolhe uma ação permitida
+→ escolhe uma ação permitida quando a política não resolveu a ação
 → escreve suggested_message
 
 Pydantic
@@ -276,10 +284,12 @@ Por isso, o modelo de linguagem não controla:
 
 Na implementação atual, a parte efetivamente probabilística é concentrada principalmente em:
 
-- `recommended_action_id`;
-- `suggested_message`.
+- `suggested_message`;
+- `recommended_action_id`, somente quando nenhuma política determinística resolve previamente a ação.
 
-Mesmo `recommended_action_id` só pode assumir valores previamente autorizados pelo catálogo.
+Para clientes com risco `High` e prioridade `Alta` ou `Crítica`, o serviço força `priority_retention_contact`, independentemente da escolha devolvida pelo LLM.
+
+Nos demais casos, `recommended_action_id` só pode assumir valores previamente autorizados pelo catálogo e compatíveis com a faixa de risco.
 
 ---
 
@@ -307,7 +317,18 @@ A disponibilidade depende da faixa de risco.
 
 Uma ação válida no enum, mas incompatível com a faixa de risco do cliente, também é bloqueada.
 
-O LLM não possui autorização para inventar novas ações.
+Além da compatibilidade por faixa, existe uma política operacional obrigatória:
+
+```text
+risk_band = High
++
+priority_label = Alta ou Crítica
+→ priority_retention_contact
+```
+
+Nesse cenário, somente a ação prioritária é apresentada ao LLM e o serviço normaliza a resposta final para essa ação.
+
+O LLM não possui autorização para inventar novas ações nem enfraquecer uma ação determinada pela política.
 
 ---
 
@@ -345,9 +366,22 @@ A IA recebe apenas contexto controlado, incluindo:
 - probabilidade de churn;
 - faixa de risco;
 - prioridade operacional;
-- sinais que aumentam a previsão segundo SHAP;
-- fatores que reduzem a previsão segundo SHAP;
+- sinais acionáveis que aumentam a previsão segundo SHAP;
+- fatores acionáveis que reduzem a previsão segundo SHAP;
 - conjunto de ações de retenção permitidas.
+
+Atributos pessoais continuam disponíveis no modelo e na explicabilidade técnica, mas não são utilizados como evidência operacional de retenção.
+
+Antes da montagem do contexto, o serviço remove:
+
+- idade;
+- gênero;
+- número de dependentes;
+- escolaridade;
+- estado civil;
+- faixa de renda.
+
+Esse filtro acontece antes do limite de cinco fatores, evitando que atributos bloqueados ocupem o espaço de sinais transacionais, financeiros ou de relacionamento.
 
 O prompt também determina que:
 
@@ -379,9 +413,13 @@ SHAP individual
     ↓
 risk_band + priority_label
     ↓
-catálogo de ações permitidas
+filtro de evidências operacionais
+    ↓
+catálogo de ações + política determinística
     ↓
 RetentionAIService
+    ↓
+contexto controlado e ações autorizadas
     ↓
 Ollama / Llama 3.1 8B
     ↓
@@ -650,7 +688,11 @@ Os testes cobrem:
 - indisponibilidade do Ollama;
 - timeout;
 - JSON inválido;
-- resposta estruturada incompleta.
+- resposta estruturada incompleta;
+- exclusão de atributos pessoais das evidências operacionais;
+- aplicação do filtro antes do limite de cinco fatores;
+- imposição de contato prioritário para `High + Alta/Crítica`;
+- sobrescrita de uma ação mais fraca devolvida pelo LLM.
 
 ## Endpoint HTTP
 
@@ -663,7 +705,9 @@ A camada FastAPI possui testes automatizados para:
 504 Gateway Timeout
 ```
 
-A bateria combinada atualmente executa **17 testes verdes** nas camadas de serviço de retenção e contrato HTTP.
+O `RetentionAIService` possui **15 testes automatizados** cobrindo geração, governança, ausência de evidências e falhas da dependência de IA.
+
+A suíte completa de `tests/api` executa atualmente **37 testes aprovados**, cobrindo serviço de retenção, schemas, contrato HTTP e integração da API.
 
 Os testes HTTP utilizam mocks para validar o comportamento da API sem depender de provocar falhas reais no Ollama em todas as execuções.
 
@@ -703,22 +747,45 @@ A aplicação combina os marts analíticos do PostgreSQL com endpoints da FastAP
 
 ## Cliente 360
 
-O Cliente 360 reúne informações individuais em uma única experiência:
+O Cliente 360 reúne o contexto individual e a operação de retenção em uma única experiência.
 
-- dados do cliente;
+A página apresenta:
+
+- busca e seleção de clientes;
 - probabilidade de churn;
 - faixa de risco;
 - prioridade operacional;
-- tempo de relacionamento;
-- atividade e inatividade;
-- limite de crédito;
-- saldo rotativo;
-- crédito disponível;
-- utilização;
-- volume e quantidade de transações;
-- explicabilidade individual com SHAP.
+- perfil e tempo de relacionamento;
+- atividade, inatividade e contatos;
+- limite de crédito, saldo rotativo e crédito disponível;
+- utilização do limite;
+- volume, quantidade e variação das transações;
+- fatores que aumentam e reduzem a previsão segundo SHAP;
+- recomendação governada de retenção integrada à interface.
 
-A integração visual da recomendação gerada pelo novo endpoint de IA é a próxima etapa desta página.
+A recomendação é gerada somente quando o usuário seleciona **Gerar recomendação**.
+
+O painel apresenta separadamente:
+
+- resumo factual do caso;
+- interpretação controlada do risco;
+- principais sinais operacionais;
+- fatores protetivos;
+- ação recomendada;
+- orientação de abordagem;
+- mensagem sugerida ao cliente;
+- pontos de atenção;
+- provider e modelo utilizados;
+- aviso de revisão humana obrigatória.
+
+A experiência também inclui:
+
+- spinner durante a inferência;
+- cache por cliente na sessão do Streamlit;
+- geração de uma nova recomendação sob demanda;
+- mensagens de erro;
+- opção de tentar novamente;
+- proteção contra execução automática de qualquer ação.
 
 ## Análise do Modelo
 
@@ -945,35 +1012,41 @@ http://localhost:8501
 
 ---
 
-# Executando os testes de retenção
+# Executando os testes da API
 
-Os testes de serviço e endpoint podem ser executados dentro da imagem da API.
+A imagem dedicada de testes isola as dependências necessárias sem alterar o container principal da API.
 
-```bash
-docker compose run --rm --no-deps \
-  -v "${PWD}/tests:/app/tests:ro" \
-  api python -m unittest discover \
-  -s /app/tests/api \
-  -p "test_retention_ai_service.py" \
-  -v
-```
-
-Para o endpoint:
+Para executar toda a suíte:
 
 ```bash
-docker compose run --rm --no-deps \
-  -v "${PWD}/tests:/app/tests:ro" \
-  api python -m unittest discover \
-  -s /app/tests/api \
-  -p "test_retention_recommendation_endpoint.py" \
-  -v
+docker compose --profile test run --rm --build api-tests python -m pytest -q tests/api
 ```
 
-A suíte black-box existente da API também pode ser executada pelo profile de testes:
+Resultado validado:
+
+```text
+37 passed, 1 warning
+```
+
+Para executar apenas os testes do serviço de retenção:
 
 ```bash
-docker compose --profile test run --rm api-tests
+docker compose --profile test run --rm --build api-tests python -m pytest -q tests/api/test_retention_ai_service.py
 ```
+
+Resultado validado:
+
+```text
+15 passed
+```
+
+Para executar somente o contrato HTTP da recomendação:
+
+```bash
+docker compose --profile test run --rm --build api-tests python -m pytest -q tests/api/test_retention_recommendation_endpoint.py
+```
+
+Os testes utilizam mocks para validar respostas, políticas e falhas da dependência de IA sem exigir chamadas reais ao Ollama em todas as execuções.
 
 ---
 
@@ -1014,7 +1087,6 @@ Um ambiente produtivo deve utilizar secrets, segregação de ambientes e usuári
 - Recomendações geradas pela IA são sugestões de abordagem, não decisões automáticas.
 - O sistema não concede descontos, crédito, benefícios ou ofertas automaticamente.
 - O projeto não representa recomendação financeira, score regulatório ou decisão automática de crédito.
-- A integração visual da recomendação de IA ao Cliente 360 ainda está em desenvolvimento.
 - Monitoramento contínuo de drift e performance ainda não foi implementado.
 
 ---
@@ -1058,60 +1130,58 @@ Um ambiente produtivo deve utilizar secrets, segregação de ambientes e usuári
 - [x] Endpoint `/customers/{customer_id}/retention-recommendation`
 - [x] Tratamento HTTP de resposta inválida, indisponibilidade e timeout
 - [x] Testes automatizados da camada de retenção
+- [x] Exclusão de atributos pessoais das evidências operacionais
+- [x] Política determinística para contato prioritário
+- [x] Suíte completa da API com 37 testes aprovados
 - [x] Validação end-to-end com cliente real
-- [ ] Integração da recomendação de IA ao Cliente 360
-- [ ] Cache de recomendação por sessão no Streamlit
-- [ ] Experiência visual de loading, retry e erros de IA
+- [x] Integração da recomendação de IA ao Cliente 360
+- [x] Cache de recomendação por sessão no Streamlit
+- [x] Experiência visual de loading, retry e erros de IA
 - [ ] Assistente FinPulse com chat
 - [ ] Alertas e automações com n8n
 - [ ] Monitoramento de dados, drift e performance
 
 ---
 
-# Próxima etapa
+# Próximas evoluções
 
-O próximo incremento conecta o endpoint de recomendação já validado à interface do **Cliente 360**.
+A integração operacional entre Cliente 360 e IA governada está concluída.
 
-O fluxo planejado é:
+O fluxo entregue é:
 
 ```text
-Usuário seleciona cliente
+Usuário seleciona o cliente
         ↓
 Cliente 360 carrega contexto e SHAP
         ↓
-Usuário clica em "Gerar recomendação"
+Usuário solicita a recomendação
         ↓
-Streamlit chama FastAPI
+Streamlit chama a FastAPI
         ↓
-RetentionAIService
+evidências pessoais não acionáveis são removidas
         ↓
-Ollama / Llama
+catálogo e política determinística controlam as ações
         ↓
-recomendação validada
+RetentionAIService prepara o contexto
         ↓
-exibição para revisão humana
+Ollama / Llama gera a parte autorizada da resposta
+        ↓
+Pydantic e regras de governança validam e normalizam o resultado
+        ↓
+Cliente 360 apresenta a recomendação para revisão humana
 ```
 
-A interface deverá incluir:
+As próximas evoluções planejadas são:
 
-- geração apenas sob demanda;
-- spinner durante inferência;
-- cache por sessão para evitar chamadas repetidas;
-- mensagens amigáveis para timeout;
-- mensagens amigáveis para indisponibilidade;
-- opção de tentar novamente;
-- apresentação separada entre evidências, ação recomendada e mensagem sugerida.
+1. adicionar capturas e vídeo demonstrativo do produto;
+2. reutilizar os serviços governados no Assistente FinPulse com chat;
+3. adicionar RAG para políticas e documentos controlados;
+4. automatizar alertas e fluxos operacionais com n8n;
+5. implementar monitoramento de dados, drift e performance.
 
-Depois dessa integração, a evolução planejada inclui:
+O futuro Assistente FinPulse não substituirá o pipeline governado existente.
 
-1. reutilizar os serviços no Assistente FinPulse;
-2. adicionar RAG para políticas e documentos controlados;
-3. automatizar alertas com n8n;
-4. adicionar monitoramento de dados, drift e performance.
-
-O RAG será utilizado futuramente para políticas, catálogo de ofertas, critérios de elegibilidade e scripts de atendimento.
-
-Dados numéricos, previsão e SHAP continuarão sendo fornecidos diretamente como contexto estruturado.
+Previsões, SHAP, prioridade, ações autorizadas e regras operacionais continuarão sendo fornecidos por componentes determinísticos. O LLM permanecerá restrito à interpretação e comunicação dentro do contexto permitido.
 
 ---
 
