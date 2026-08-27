@@ -15,6 +15,7 @@ from api.retention_ai_service import (
 )
 
 from api.retention_catalog import get_allowed_retention_actions
+
 from api.schemas import (
     IndividualExplainabilityResponse,
     RetentionRecommendationContent,
@@ -22,6 +23,74 @@ from api.schemas import (
 
 
 class TestRetentionAIService(IsolatedAsyncioTestCase):
+    def test_non_actionable_features_are_excluded_from_evidence(self):
+        explainability = self._build_explainability()
+
+        risk_factor = explainability.risk_increasing_factors[0]
+        protective_factor = explainability.risk_reducing_factors[0]
+
+        restricted_feature_values = [
+            ("customer_age", 50),
+            ("gender", "M"),
+            ("dependent_count", 2),
+            ("education_level", "Graduate"),
+            ("marital_status", "Married"),
+            ("income_category", "$40K - $60K"),
+        ]
+
+        restricted_risk_factors = [
+            risk_factor.model_copy(
+                update={
+                    "feature": feature,
+                    "value": value,
+                }
+            )
+            for feature, value in restricted_feature_values
+        ]
+
+        restricted_protective_factors = [
+            protective_factor.model_copy(
+                update={
+                    "feature": feature,
+                    "value": value,
+                }
+            )
+            for feature, value in restricted_feature_values
+        ]
+
+        explainability = explainability.model_copy(
+            update={
+                "risk_increasing_factors": [
+                    *restricted_risk_factors,
+                    risk_factor,
+                ],
+                "risk_reducing_factors": [
+                    *restricted_protective_factors,
+                    protective_factor,
+                ],
+            }
+        )
+
+        risk_signals, protective_factors = (
+            RetentionAIService._build_evidence_lists(
+                explainability
+            )
+        )
+
+        self.assertEqual(
+            risk_signals,
+            [
+                "Quantidade de transações: 20 transações.",
+            ],
+        )
+
+        self.assertEqual(
+            protective_factors,
+            [
+                "Tempo como cliente: 48 meses.",
+            ],
+        )
+
     @staticmethod
     def _build_explainability(
         churn_probability: float = 0.91,
@@ -63,6 +132,72 @@ class TestRetentionAIService(IsolatedAsyncioTestCase):
                     }
                 ],
             }
+        )
+
+    async def test_high_priority_enforces_priority_retention_contact(self):
+        explainability = self._build_explainability(
+            churn_probability=0.99,
+            risk_band="High",
+        )
+
+        fake_llama_response = {
+            "case_summary": "Resumo gerado pela IA.",
+            "risk_interpretation": "Interpretação gerada pela IA.",
+            "main_risk_signals": [],
+            "protective_factors": [],
+            "recommended_action_id": "preventive_contact",
+            "approach_guidance": "Realizar contato preventivo.",
+            "suggested_message": (
+                "Olá! Gostaríamos de conversar sobre "
+                "sua experiência conosco."
+            ),
+            "attention_points": [],
+        }
+
+        fake_ollama_response = SimpleNamespace(
+            message=SimpleNamespace(
+                content=json.dumps(
+                    fake_llama_response,
+                    ensure_ascii=False,
+                )
+            )
+        )
+
+        service = RetentionAIService()
+        service._client.chat = AsyncMock(
+            return_value=fake_ollama_response
+        )
+
+        result = await service.generate_recommendation(
+            explainability=explainability,
+            priority_label="Alta",
+            allowed_actions=get_allowed_retention_actions("High"),
+        )
+
+        self.assertEqual(
+            result.recommended_action_id.value,
+            "priority_retention_contact",
+        )
+
+        self.assertEqual(
+            result.approach_guidance,
+            (
+                "Priorizar contato humano para compreender o cenário e "
+                "avaliar alternativas de retenção autorizadas."
+            ),
+        )
+
+        call_kwargs = service._client.chat.await_args.kwargs
+        controlled_message = call_kwargs["messages"][1]["content"]
+
+        self.assertIn(
+            '"action_id": "priority_retention_contact"',
+            controlled_message,
+        )
+
+        self.assertNotIn(
+            '"action_id": "preventive_contact"',
+            controlled_message,
         )
 
     async def test_generate_recommendation_returns_validated_content(self):
@@ -150,28 +285,24 @@ class TestRetentionAIService(IsolatedAsyncioTestCase):
         self.assertEqual(
             result.case_summary,
             (
-                "Cliente classificado na faixa de risco High, "
-                "com probabilidade de churn de 91.00%."
+                "Cliente classificado em alto risco, "
+                "com probabilidade de churn de 91,00%. "
+                "Principal sinal identificado — "
+                "Quantidade de transações: 20 transações."
             ),
         )
 
         self.assertEqual(
             result.main_risk_signals,
             [
-                (
-                    "A característica 'total_transaction_count' contribuiu "
-                    "para aumentar a previsão de churn do modelo."
-                )
+                "Quantidade de transações: 20 transações.",
             ],
         )
 
         self.assertEqual(
             result.protective_factors,
             [
-                (
-                    "A característica 'months_on_book' contribuiu para reduzir "
-                    "a previsão de churn do modelo."
-                )
+                "Tempo como cliente: 48 meses.",
             ],
         )
 
@@ -183,7 +314,8 @@ class TestRetentionAIService(IsolatedAsyncioTestCase):
                     "antes de qualquer ação."
                 ),
                 (
-                    "As contribuições SHAP não representam relações causais."
+                    "As contribuições do modelo não representam "
+                    "relações causais."
                 ),
             ],
         )
@@ -318,8 +450,10 @@ class TestRetentionAIService(IsolatedAsyncioTestCase):
         self.assertEqual(
             result.case_summary,
             (
-                "Cliente classificado na faixa de risco Medium, "
-                "com probabilidade de churn de 35.00%."
+                "Cliente classificado em médio risco, "
+                "com probabilidade de churn de 35,00%. "
+                "Principal sinal identificado — "
+                "Quantidade de transações: 20 transações."
             ),
         )
 
@@ -380,8 +514,10 @@ class TestRetentionAIService(IsolatedAsyncioTestCase):
         self.assertEqual(
             result.case_summary,
             (
-                "Cliente classificado na faixa de risco Low, "
-                "com probabilidade de churn de 10.00%."
+                "Cliente classificado em baixo risco, "
+                "com probabilidade de churn de 10,00%. "
+                "Principal sinal identificado — "
+                "Quantidade de transações: 20 transações."
             ),
         )
 
@@ -496,10 +632,7 @@ class TestRetentionAIService(IsolatedAsyncioTestCase):
         self.assertEqual(
             result.main_risk_signals,
             [
-                (
-                    "A característica 'total_transaction_count' contribuiu "
-                    "para aumentar a previsão de churn do modelo."
-                )
+                "Quantidade de transações: 20 transações.",
             ],
         )
     async def test_without_risk_factors_does_not_invent_evidence(self):
@@ -561,10 +694,7 @@ class TestRetentionAIService(IsolatedAsyncioTestCase):
         self.assertEqual(
             result.protective_factors,
             [
-                (
-                    "A característica 'months_on_book' contribuiu para reduzir "
-                    "a previsão de churn do modelo."
-                )
+                "Tempo como cliente: 48 meses.",
             ],
         )
 

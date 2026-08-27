@@ -1,0 +1,618 @@
+/* =========================================================
+   FINPULSE AI — CLIENTE 360
+   Layout horizontal exclusivo da análise individual
+   ========================================================= */
+
+.block-container {
+  max-width: 1600px;
+  padding-top: 1.25rem;
+  padding-right: 2rem;
+  padding-bottom: 3rem;
+  padding-left: 2rem;
+}
+
+/* Evita que os st.metric globais deixem esta página vertical. */
+.st-key-customer360-page div[data-testid="stMetric"] {
+  min-height: 0;
+}
+
+/* Estrutura-base dos cards desta página. */
+.customer360-card {
+  min-width: 0;
+  border: 1px solid rgba(94, 234, 212, 0.2);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(10, 35, 59, 0.96),
+      rgba(5, 25, 43, 0.98)
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Cabeçalho compacto. */
+.customer360-eyebrow {
+  margin: 0 0 0.55rem;
+  color: #2dd4bf;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.16rem;
+  text-transform: uppercase;
+}
+
+.customer360-page-title {
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(2rem, 3vw, 2.8rem);
+  font-weight: 850;
+  line-height: 1;
+}
+
+.customer360-page-description {
+  margin: 0.75rem 0 0;
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+/* Cards superiores: probabilidade, risco e prioridade. */
+.customer360-kpi-card {
+  display: flex;
+  min-height: 112px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1rem 1.1rem;
+}
+
+.customer360-kpi-label {
+  color: #94a3b8;
+  font-size: 0.66rem;
+}
+
+.customer360-kpi-value {
+  margin-top: 0.3rem;
+  color: #f8fafc;
+  font-size: 1.35rem;
+  font-weight: 850;
+}
+
+.customer360-kpi-danger {
+  color: #fb7185;
+}
+
+.customer360-kpi-caption {
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-size: 0.62rem;
+}
+
+/* Quatro resumos 360 na mesma linha. */
+.customer360-summary-card {
+  min-height: 130px;
+  padding: 0.9rem 1rem;
+}
+
+.customer360-summary-title {
+  margin-bottom: 0.8rem;
+  color: #67e8f9;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.035rem;
+  text-transform: uppercase;
+}
+
+.customer360-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.customer360-summary-item {
+  min-width: 0;
+}
+
+.customer360-summary-item span {
+  display: block;
+  color: #7890aa;
+  font-size: 0.57rem;
+  line-height: 1.25;
+}
+
+.customer360-summary-item strong {
+  display: block;
+  margin-top: 0.28rem;
+  overflow: hidden;
+  color: #f1f5f9;
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1050px) {
+  .block-container {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .customer360-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .customer360-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   CABEÇALHO HORIZONTAL
+   ========================================================= */
+
+.customer360-header-copy {
+  min-height: 112px;
+  padding-top: 0.2rem;
+}
+
+.customer360-header-copy + div {
+  margin-top: 0.65rem;
+}
+
+.customer360-probability-card {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.customer360-mini-gauge {
+  position: relative;
+  display: flex;
+  width: 62px;
+  height: 62px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      #4dd7eb var(--probability-angle),
+      rgba(148, 163, 184, 0.16) 0deg
+    );
+  box-shadow:
+    0 0 18px rgba(77, 215, 235, 0.15);
+}
+
+.customer360-mini-gauge::before {
+  content: "";
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #0a2037;
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.42);
+}
+
+.customer360-mini-gauge strong {
+  position: relative;
+  z-index: 1;
+  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.customer360-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.customer360-kpi-icon {
+  color: #fb7185;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+div[data-testid="stSelectbox"] {
+  max-width: 300px;
+}
+
+div[data-testid="stSelectbox"] > div > div {
+  border-color: rgba(56, 189, 248, 0.28);
+  background: rgba(8, 34, 57, 0.94);
+}
+
+@media (max-width: 1050px) {
+  .customer360-probability-card {
+    grid-template-columns: 1fr;
+  }
+
+  .customer360-mini-gauge {
+    width: 54px;
+    height: 54px;
+  }
+
+  .customer360-mini-gauge::before {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+/* =========================================================
+   RESUMO 360 HORIZONTAL
+   ========================================================= */
+
+.customer360-summary-card {
+  min-height: 142px;
+  padding: 0.95rem 1rem;
+}
+
+.customer360-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.customer360-summary-icon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #67e8f9;
+  background: rgba(14, 165, 233, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(103, 232, 249, 0.12);
+}
+
+.customer360-summary-title {
+  margin: 0;
+  color: #67e8f9;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.035rem;
+  text-transform: uppercase;
+}
+
+.customer360-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(68px, 1fr)
+  );
+  gap: 0.75rem;
+}
+
+.customer360-summary-item {
+  min-width: 0;
+}
+
+.customer360-summary-item span {
+  display: block;
+  min-height: 1.9rem;
+  color: #91a4b9;
+  font-size: 0.64rem;
+  line-height: 1.3;
+}
+
+.customer360-summary-item strong {
+  display: block;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 0.86rem;
+  font-weight: 750;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer360-summary-item strong.customer360-summary-danger {
+  color: #fb7185;
+}
+
+.customer360-summary-item strong.customer360-summary-positive {
+  color: #2dd4bf;
+}
+
+@media (max-width: 1100px) {
+  .customer360-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .customer360-summary-card {
+    min-height: 164px;
+  }
+}
+
+/* Alinha os KPIs superiores com o título Cliente 360. */
+.customer360-kpi-card {
+  margin-top: 0;
+  transform: translateY(1.55rem);
+}
+
+@media (max-width: 700px) {
+  .customer360-kpi-card {
+    transform: none;
+  }
+}
+/* =========================================================
+   PAINEL DA RECOMENDAÇÃO COM IA
+   ========================================================= */
+
+.st-key-customer360-ai-panel {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid rgba(34, 211, 238, 0.82) !important;
+  border-radius: 14px !important;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(14, 165, 233, 0.08),
+      transparent 42%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(5, 28, 48, 0.98),
+      rgba(4, 22, 39, 0.99)
+    );
+  box-shadow:
+    0 0 24px rgba(6, 182, 212, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.customer360-ai-heading {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.customer360-ai-symbol {
+  color: #67e8f9;
+  font-size: 1.75rem;
+  line-height: 1;
+  filter: drop-shadow(
+    0 0 8px rgba(34, 211, 238, 0.35)
+  );
+}
+
+.customer360-ai-eyebrow {
+  display: block;
+  margin-bottom: 0.18rem;
+  color: #2dd4bf;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.09rem;
+  text-transform: uppercase;
+}
+
+.customer360-ai-title {
+  margin: 0;
+  color: #67e8f9;
+  font-size: clamp(1rem, 1.55vw, 1.35rem);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.customer360-human-review {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(245, 158, 11, 0.72);
+  border-radius: 8px;
+  color: #fbbf24;
+  background: rgba(120, 53, 15, 0.1);
+  font-size: 0.66rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.st-key-customer360-ai-panel
+button[data-testid="stBaseButton-primary"] {
+  min-height: 38px;
+  border: 1px solid #67e8f9;
+  border-radius: 7px;
+  color: #062033;
+  background: linear-gradient(
+    135deg,
+    #67e8f9,
+    #22d3ee
+  );
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(34, 211, 238, 0.16);
+}
+
+.st-key-customer360-ai-panel
+button[data-testid="stBaseButton-primary"]:hover {
+  border-color: #a5f3fc;
+  color: #031825;
+  background: #a5f3fc;
+}
+
+/* =========================================================
+   CONTEÚDO DA RECOMENDAÇÃO
+   ========================================================= */
+
+.customer360-ai-card {
+  height: 100%;
+  padding: 1rem;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 10px;
+  background: rgba(3, 24, 42, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.customer360-ai-section-label {
+  margin-bottom: 0.75rem;
+  color: #67e8f9;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.045rem;
+  text-transform: uppercase;
+}
+
+.customer360-action-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.customer360-action-icon {
+  display: inline-flex;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(45, 212, 191, 0.55);
+  border-radius: 50%;
+  color: #5eead4;
+  background: rgba(13, 148, 136, 0.14);
+  font-size: 1.45rem;
+}
+
+.customer360-action-hero h3 {
+  margin: 0;
+  color: #67e8f9;
+  font-size: 1.08rem;
+  line-height: 1.25;
+}
+
+.customer360-action-hero p {
+  margin: 0.35rem 0 0;
+  color: #9aadc0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.customer360-ai-divider {
+  height: 1px;
+  margin: 1.15rem 0;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.customer360-ai-body {
+  margin: 0;
+  color: #d9e4ef;
+  font-size: 0.8rem;
+  line-height: 1.65;
+}
+
+.customer360-ai-interpretation {
+  margin: 0.85rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  color: #7f93a8;
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+.customer360-signals-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+  margin-bottom: 0.65rem;
+}
+
+.customer360-signals-column + .customer360-signals-column {
+  padding-left: 1.2rem;
+  border-left: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.customer360-ai-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.customer360-ai-list li {
+  position: relative;
+  padding-left: 1rem;
+  color: #dce7f2;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.customer360-ai-list li::before {
+  content: "";
+  position: absolute;
+  top: 0.48rem;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.customer360-risk-list li::before {
+  background: #fb7185;
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.35);
+}
+
+.customer360-protective-list li::before {
+  background: #2dd4bf;
+  box-shadow: 0 0 8px rgba(45, 212, 191, 0.35);
+}
+
+.customer360-guidance-card,
+.customer360-message-card {
+  min-height: 138px;
+}
+
+.customer360-message-card blockquote {
+  margin: 0;
+  color: #a5f3fc;
+  font-size: 0.8rem;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.customer360-attention-strip {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: 8px;
+  color: #d7e2ed;
+  background: rgba(120, 53, 15, 0.08);
+  font-size: 0.7rem;
+}
+
+.customer360-attention-strip strong {
+  color: #fbbf24;
+}
+
+.customer360-attention-strip ul {
+  display: inline;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.customer360-generation-caption,
+.customer360-ai-empty {
+  margin: 0.8rem 0 0;
+  color: #71869b;
+  font-size: 0.64rem;
+}
+
+@media (max-width: 900px) {
+  .customer360-signals-card {
+    grid-template-columns: 1fr;
+  }
+
+  .customer360-signals-column +
+  .customer360-signals-column {
+    padding-top: 1rem;
+    padding-left: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.15);
+    border-left: 0;
+  }
+}
+
