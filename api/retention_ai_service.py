@@ -5,11 +5,7 @@ from ollama import AsyncClient
 
 
 from api.config import settings
-from api.retention_catalog import (
-    RetentionAction,
-    get_retention_action,
-    is_retention_action_allowed,
-)
+
 from api.schemas import (
     IndividualExplainabilityResponse,
     RetentionRecommendationContent,
@@ -298,7 +294,6 @@ class RetentionAIService:
             ],
         }
 
-    @classmethod
     @classmethod
     def _build_evidence_lists(
         cls,
