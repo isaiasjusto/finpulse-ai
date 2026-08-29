@@ -15,6 +15,17 @@ from api.schemas import (
     AssistantSourceResponse,
 )
 
+ASSISTANT_GENERATION_FORMAT = {
+    "type": "object",
+    "properties": {
+        "answer": {
+            "type": "string",
+        },
+    },
+    "required": [
+        "answer",
+    ],
+}
 
 class AssistantAIUnavailableError(RuntimeError):
     """Raised when the local assistant LLM is unavailable."""
@@ -139,9 +150,7 @@ class AssistantAIService:
             response = await self._client.chat(
                 model=settings.ollama_model,
                 messages=messages,
-                format=(
-                    AssistantGeneratedContent.model_json_schema()
-                ),
+                format=ASSISTANT_GENERATION_FORMAT,
                 options={
                     "temperature": 0,
                 },

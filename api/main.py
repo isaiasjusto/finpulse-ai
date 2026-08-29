@@ -1,6 +1,12 @@
 import logging
 from contextlib import asynccontextmanager
 
+from api.schemas import (
+    AssistantQueryRequest,
+    AssistantQueryResponse,
+    AssistantScope,
+)
+
 import pandas as pd
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -52,6 +58,17 @@ from api.retention_ai_service import (
     RetentionAIService,
     RetentionAITimeoutError,
     RetentionAIUnavailableError,
+)
+
+from api.assistant_ai_service import (
+    AssistantAIInvalidResponseError,
+    AssistantAITimeoutError,
+    AssistantAIUnavailableError,
+)
+from api.assistant_service import (
+    AssistantContextUnavailableError,
+    AssistantCustomerNotFoundError,
+    AssistantService,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -792,3 +809,85 @@ def predict(
         model_alias=str(model_info_data["alias"]),
     )
 
+@app.post(
+    "/assistant/query",
+    response_model=AssistantQueryResponse,
+    tags=["assistant-ai"],
+)
+async def assistant_query(
+    query: AssistantQueryRequest,
+    request: Request,
+) -> AssistantQueryResponse:
+    model_service: ModelService = (
+        request.app.state.model_service
+    )
+
+    if (
+        query.scope == AssistantScope.customer
+        and not model_service.is_loaded
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Champion model is not available.",
+        )
+
+    assistant_service = AssistantService(
+        model_service=model_service
+    )
+
+    try:
+        return await assistant_service.generate_response(
+            query
+        )
+    except AssistantCustomerNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except AssistantContextUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    except AssistantAIInvalidResponseError as exc:
+        logger.exception(
+            "Assistant AI returned invalid content."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                "Assistant AI returned an invalid response."
+            ),
+        ) from exc
+    except AssistantAIUnavailableError as exc:
+        logger.exception(
+            "Assistant AI service is unavailable."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Assistant AI service is unavailable.",
+        ) from exc
+    except AssistantAITimeoutError as exc:
+        logger.exception(
+            "Assistant AI service timed out."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Assistant AI service timed out.",
+        ) from exc
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "Assistant database context is unavailable."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Assistant database context is unavailable."
+            ),
+        ) from exc
+    finally:
+        await assistant_service.close()

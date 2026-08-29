@@ -367,3 +367,217 @@ def load_customer_retention_recommendation(
         )
 
     return result
+
+def ask_finpulse_assistant(
+    question: str,
+    scope: str,
+    customer_id: str | int | None = None,
+) -> dict[str, Any]:
+    normalized_question = str(question).strip()
+    normalized_scope = str(scope).strip().casefold()
+
+    if not normalized_question:
+        raise ValueError(
+            "A pergunta não pode estar vazia."
+        )
+
+    allowed_scopes = {
+        "customer",
+        "portfolio",
+        "policy",
+    }
+
+    if normalized_scope not in allowed_scopes:
+        raise ValueError(
+            "O escopo informado não é permitido."
+        )
+
+    payload: dict[str, object] = {
+        "question": normalized_question,
+        "scope": normalized_scope,
+    }
+
+    if normalized_scope == "customer":
+        normalized_customer_id = str(
+            customer_id
+            if customer_id is not None
+            else ""
+        ).strip()
+
+        if not normalized_customer_id:
+            raise ValueError(
+                "Selecione um cliente para esta pergunta."
+            )
+
+        try:
+            parsed_customer_id = int(
+                normalized_customer_id
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "O ID do cliente deve ser numérico."
+            ) from exc
+
+        if parsed_customer_id <= 0:
+            raise ValueError(
+                "O ID do cliente deve ser positivo."
+            )
+
+        payload["customer_id"] = parsed_customer_id
+
+    elif customer_id not in {
+        None,
+        "",
+    }:
+        raise ValueError(
+            (
+                "O cliente só pode ser informado "
+                "no escopo individual."
+            )
+        )
+
+    request = Request(
+        url=f"{API_BASE_URL}/assistant/query",
+        data=json.dumps(
+            payload,
+            ensure_ascii=False,
+        ).encode("utf-8"),
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(
+            request,
+            timeout=130,
+        ) as response:
+            response_body = response.read().decode(
+                "utf-8"
+            )
+
+    except HTTPError as exc:
+        error_messages = {
+            404: "O cliente informado não foi encontrado.",
+            409: (
+                "O contexto necessário para responder "
+                "a pergunta não está disponível."
+            ),
+            422: (
+                "A pergunta não respeitou o contrato "
+                "do Assistente."
+            ),
+            502: (
+                "A IA retornou uma resposta inválida. "
+                "Tente novamente."
+            ),
+            503: (
+                "Um serviço necessário ao Assistente "
+                "está indisponível."
+            ),
+            504: (
+                "O Assistente ultrapassou o tempo limite. "
+                "Tente novamente."
+            ),
+        }
+
+        raise RuntimeError(
+            error_messages.get(
+                exc.code,
+                (
+                    "A API respondeu com erro ao "
+                    "consultar o Assistente."
+                ),
+            )
+        ) from exc
+
+    except TimeoutError as exc:
+        raise RuntimeError(
+            "O Assistente ultrapassou o tempo limite."
+        ) from exc
+
+    except URLError as exc:
+        raise RuntimeError(
+            "Não foi possível conectar à API do FinPulse."
+        ) from exc
+
+    try:
+        result = json.loads(response_body)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "A API retornou uma resposta inválida."
+        ) from exc
+
+    required_fields = {
+        "scope",
+        "answer",
+        "customer_id",
+        "sources",
+        "requires_human_review",
+        "generation",
+    }
+
+    if (
+        not isinstance(result, dict)
+        or not required_fields.issubset(result)
+    ):
+        raise RuntimeError(
+            "A resposta do Assistente possui formato inesperado."
+        )
+
+    if (
+        not isinstance(result["answer"], str)
+        or not result["answer"].strip()
+    ):
+        raise RuntimeError(
+            "O Assistente retornou uma resposta vazia."
+        )
+
+    if (
+        not isinstance(result["sources"], list)
+        or not result["sources"]
+    ):
+        raise RuntimeError(
+            "A resposta do Assistente não possui fontes."
+        )
+
+    source_fields = {
+        "source_type",
+        "label",
+        "reference",
+    }
+
+    if any(
+        not isinstance(source, dict)
+        or not source_fields.issubset(source)
+        for source in result["sources"]
+    ):
+        raise RuntimeError(
+            "As fontes do Assistente possuem formato inesperado."
+        )
+
+    generation = result["generation"]
+
+    if (
+        not isinstance(generation, dict)
+        or not {
+            "provider",
+            "model",
+            "generated_at",
+        }.issubset(generation)
+    ):
+        raise RuntimeError(
+            "Os metadados do Assistente são inválidos."
+        )
+
+    if result["requires_human_review"] is not True:
+        raise RuntimeError(
+            (
+                "A resposta do Assistente não exige "
+                "a revisão humana obrigatória."
+            )
+        )
+
+    return result
