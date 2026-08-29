@@ -1,11 +1,18 @@
-from pydantic import BaseModel, ConfigDict, model_validator
 from datetime import datetime
 from enum import Enum
+from typing import Literal
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
+
 from api.retention_catalog import (
     RetentionActionId,
     is_retention_action_allowed,
 )
-
 
 class PredictionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -222,6 +229,128 @@ class CustomerRetentionRecommendationResponse(BaseModel):
             raise ValueError(
                 f"Retention action '{action_id.value}' is not allowed "
                 f"for risk band '{risk_band}'."
+            )
+
+        return self
+
+class AssistantScope(str, Enum):
+    customer = "customer"
+    portfolio = "portfolio"
+    policy = "policy"
+
+
+class AssistantSourceType(str, Enum):
+    customer_explainability = "customer_explainability"
+    portfolio_summary = "portfolio_summary"
+    retention_catalog = "retention_catalog"
+    retention_policy = "retention_policy"
+    controlled_document = "controlled_document"
+
+
+class AssistantQueryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(
+        min_length=1,
+        max_length=1000,
+    )
+    scope: AssistantScope
+    customer_id: int | None = None
+
+    @model_validator(mode="after")
+    def validate_scope_context(
+        self,
+    ) -> "AssistantQueryRequest":
+        if not self.question.strip():
+            raise ValueError(
+                "Assistant question cannot be blank."
+            )
+
+        if (
+            self.scope == AssistantScope.customer
+            and self.customer_id is None
+        ):
+            raise ValueError(
+                "Customer scope requires customer_id."
+            )
+
+        if (
+            self.scope != AssistantScope.customer
+            and self.customer_id is not None
+        ):
+            raise ValueError(
+                "customer_id is only allowed for customer scope."
+            )
+
+        return self
+
+
+class AssistantSourceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_type: AssistantSourceType
+    label: str = Field(
+        min_length=1,
+        max_length=120,
+    )
+    reference: str | None = Field(
+        default=None,
+        max_length=500,
+    )
+
+
+class AssistantQueryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scope: AssistantScope
+    answer: str = Field(
+        min_length=1,
+        max_length=4000,
+    )
+    customer_id: int | None = None
+    sources: list[AssistantSourceResponse] = Field(
+        min_length=1,
+    )
+    requires_human_review: Literal[True] = True
+    generation: RecommendationGenerationResponse
+
+    @model_validator(mode="after")
+    def validate_scope_context(
+        self,
+    ) -> "AssistantQueryResponse":
+        if (
+            self.scope == AssistantScope.customer
+            and self.customer_id is None
+        ):
+            raise ValueError(
+                "Customer response requires customer_id."
+            )
+
+        if (
+            self.scope != AssistantScope.customer
+            and self.customer_id is not None
+        ):
+            raise ValueError(
+                "customer_id is only allowed for customer scope."
+            )
+
+        return self
+
+class AssistantGeneratedContent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str = Field(
+        min_length=1,
+        max_length=4000,
+    )
+
+    @model_validator(mode="after")
+    def validate_answer(
+        self,
+    ) -> "AssistantGeneratedContent":
+        if not self.answer.strip():
+            raise ValueError(
+                "Assistant answer cannot be blank."
             )
 
         return self
